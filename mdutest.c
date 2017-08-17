@@ -33,6 +33,127 @@ static char *mdu_data = NULL;
 #define ENDOF(type, member) \
     (offsetof(type, member) + sizeof(((type *)0)->member))
 
+static void dump_mdu_config_cmd(const DBPOD_MSGHDR *hdr)
+{
+    const DBPOD_CMDBUF_MDU_CONFIG *cmd = (const DBPOD_CMDBUF_MDU_CONFIG *)hdr;
+    const char *paritystr;
+
+    switch (cmd->nParity)
+    {
+    case DBPOD_MDU_PARITY_NONE:
+        paritystr = "None";
+        break;
+    case DBPOD_MDU_PARITY_ODD:
+        paritystr = "Odd";
+        break;
+    case DBPOD_MDU_PARITY_EVEN:
+        paritystr = "Even";
+        break;
+    default:
+        paritystr = "?";
+        break;
+    }
+    printf("dwSpeed=%u, nDataBits=%u, nParity=%u (%s), nStopBits=%u, nPort=%u\n",
+            (unsigned)cmd->dwSpeed, cmd->nDataBits, cmd->nParity, paritystr,
+            cmd->nStopBits, cmd->nPort);
+}
+
+static void print_dqescape(const char *s, size_t len)
+{
+    size_t n;
+
+    /* Check for funny characters. */
+    for (n = 0; n < len; n++)
+    {
+        int c = s[n];
+        int uc = (unsigned char)s[n];
+
+        if (!isprint(uc) || c == '"' || c == '\'' || c == '\\')
+        {
+            break;
+        }
+    }
+    if (n < len)
+    {
+        for (n = 0; n < len; n++)
+        {
+            int c = s[n];
+            int uc = (unsigned char)s[n];
+
+            if (isprint(uc) && c != '"' && c != '\\')
+            {
+                putc(c, stdout);
+            }
+            else
+            {
+                int e = EOF;
+
+                switch (c)
+                {
+                case '"':
+                case '\\':
+                    e = c;
+                    break;
+                case '\a':
+                    e = 'a';
+                    break;
+                case '\b':
+                    e = 'b';
+                    break;
+                case '\f':
+                    e = 'f';
+                    break;
+                case '\n':
+                    e = 'n';
+                    break;
+                case '\r':
+                    e = 'r';
+                    break;
+                case '\t':
+                    e = 't';
+                    break;
+                case '\v':
+                    e = 'v';
+                    break;
+                }
+                if (e == EOF)
+                {
+                    printf("\\x%02X", uc);
+                }
+                else
+                {
+                    printf("\\%c", e);
+                }
+            }
+        }
+    }
+    else
+    {
+        fputs(s, stdout);
+    }
+}
+
+static void dump_mdu_data(const DBPOD_MSGHDR *hdr)
+{
+    /* Command and response have same format. */
+    const DBPOD_CMDBUF_MDU_DATA *msg = (const DBPOD_CMDBUF_MDU_DATA *)hdr;
+    unsigned datalen = msg->wLength;
+
+    printf("dwTimeout=%u ms, wLength=%u, nPort=%u, fContinuation=%d,\n",
+            (unsigned)msg->dwTimeout, msg->wLength, msg->nPort,
+            msg->fContinuation);
+    if (msg->hdr.dwLength <
+            offsetof(DBPOD_CMDBUF_MDU_DATA, bData[datalen]) - sizeof(ULONG))
+    {
+        printf("*** MDU data too short\n");
+        datalen = msg->hdr.dwLength + sizeof(ULONG) -
+            offsetof(DBPOD_CMDBUF_MDU_DATA, bData[0]);
+    }
+    printf("bData[]=\"");
+    print_dqescape((const char *)msg->bData, datalen);
+    printf("\"\n");
+}
+
 static void dump_msg(const DBPOD_MSGHDR *hdr, int direction)
 {
     const char *dirstr = (direction == DIR_SEND ? "Send" : "Receive");
@@ -170,6 +291,17 @@ static void dump_msg(const DBPOD_MSGHDR *hdr, int direction)
     printf("*** %s %s %s (0x%04X) len %u seq %u subcode %u\n",
             dirstr, msgstr, flagstr, hdr->wCmd, hdr->dwLength, hdr->dwSequence,
             hdr->wSubCode);
+
+    switch (hdr->wCmd)
+    {
+    case DBPOD_CMDCODE_MDU_CONFIG:
+        dump_mdu_config_cmd(hdr);
+        break;
+    case DBPOD_CMDCODE_MDU_DATA:
+    case DBPOD_RSPCODE_MDU_DATA:
+        dump_mdu_data(hdr);
+        break;
+    }
 }
 
 static int get_bytes(void *buf, size_t len)
