@@ -6,7 +6,7 @@
  *
  * db-Pod Communications Messages
  *
- * Copyright (c) 2008-2014 MEV Ltd., Bell Technology Ltd.
+ * Copyright (c) 2008-2017 MEV Ltd., Bell Technology Ltd.
  * All rights reserved.
  *
  * MODULE CONTENTS
@@ -103,8 +103,52 @@ extern "C" {
  * DBPOD_RSPBUF_GET_CAPABILITIES, replacing the unused 'pad2' member.
  * This holds the number of channel configurations supported by the
  * pod.
+ * --------------------------------------------------------------------
+ * Packet version 0x40002 changes DBPOD_RSPBUF_GET_CAPABILITIES as
+ * follows, which should be backwards compatible:
+ *
+ *   'dwRFFScaleFreq' renamed to 'dwFiltScaleFreq'.  It now either
+ *   applies to, or does not apply to, the LPF, HPF and RFF filter
+ *   breakpoints, depending on the other members defined below.
+ *
+ *   'fVideoTracking' has been split into 'fVideoTracking', 'fScaleLPF',
+ *   'fScaleHPF', and 'fScaleRFF', all of type CHAR.  'fVideoTracking' was
+ *   previously set to TRUE.
+ *
+ *   If 'fScaleLPF' is FALSE, the low-pass filter breakpoint frequencies
+ *   in 'anLPF[]' are absolute (except that a value of 0 means "broadband").
+ *   If 'fScaleLPF' is TRUE, the values in 'anLPF[]' need to be multiplied
+ *   by the digitization frequency ('nSampleFreq' in the channel configuration)
+ *   and divided by the 'dwFiltScaleFreq'.
+ *
+ *   If 'fScaleHPF' is FALSE, the high-pass filter breakpoint frequencies
+ *   in 'anHPF[]' are absolute.  If 'fScaleHPF' is TRUE, the values in
+ *   'anHPF[]' need to be multiplied by the digitization frequency
+ *   ('nSampleFreq' in the channel configuration) and divided by the
+ *   'dwFiltScaleFreq'.
+ *
+ *   If 'fScaleRFF' is FALSE, the post-rectification filter breakpoint
+ *   frequencies in 'anRFF[]' are absolute.  If 'fScaleHPF' is TRUE, the
+ *   values in 'anRFF[]' need to be multiplied by the digitization frequency
+ *   ('nSampleFreq' in the channel configuration) and divided by the
+ *   'dwFiltScaleFreq'.
+ *
+ * DBPOD_CMDBUF_CHAN_CONFIG now has the 'wCompatLevel' member replacing the
+ * 'pad2' member:
+ *
+ *   If 'wCompatLevel' is 0 (old application), the 'nHPF', 'nLPF', and 'nRFF'
+ *   values will be matched against supported values listed in the capabilities
+ *   as-is, with no scaling, regardless of the 'fScaleHPF', 'fScaleLPF' and
+ *   'fScaleRFF' flags in the capabilities.  This may result in the filter
+ *   cut-off frequencies that are actually applied being different from the
+ *   specified frequencies.
+ *
+ *   If 'wCompatLevel' is 1 (new application), the 'nHPF', 'nLPF', and 'nRFF',
+ *   values will be matched against unscaled or scaled (depending on the
+ *   'fScaleHPF', 'fScaleLPF', and 'fScaleRFF' settings in the capabilities)
+ *   versions of the supported values listed in the capabilities.
  */
-#define DBPOD_CURRENT_PACKET_VERSION    0x40001
+#define DBPOD_CURRENT_PACKET_VERSION    0x40002
 
 /*
  * Message Header.
@@ -212,12 +256,14 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     SHORT       nRectFilters;       /* Number of post-rectification filter breakpoints. A -1 indicates a continuous range. */
     SHORT       pad6;               /* (padding) */
     LONG        anRFF[16];          /* Post-rectification filter breakpoints, or continuous range from anRFF[0] to anRFF[1], in Hz. */
-    ULONG       dwRFFScaleFreq;     /* Post rectification filter scale
-                                       frequency.
-                                       If 0, values in anRFF[] are absolute.
-                                       If not 0, values in anRFF[] should be
-                                       multiplied by digitization frequency and
-                                       divided by dwRFFScaleFreq. */
+    ULONG       dwFiltScaleFreq;    /* Filter scale frequency.
+                                       Used in conjunction with fScaleLPF,
+                                       fScaleHPF, and fScaleRFF.  If those
+                                       are all FALSE, dwFiltScaleFreq is
+                                       unused and may be 0.  Otherwise, it
+                                       holds the denomimator of the scaling
+                                       factor (generally the highest
+                                       digitization frequency). */
     LONG        fGlobalRFF;         /* Flag: post-rectification filters must be configured alike for all channels. */
     SHORT       nMinTrigPulse;      /* Minimum pulse width of the external trigger input in microseconds. */
     SHORT       nChannels;          /* Number of physical transducer channels. */
@@ -227,7 +273,26 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     SHORT       nPots;              /* Number of potentiometer axes. */
     SHORT       nPotBits;           /* Number of bits on the potentiometer ADC. */
     USHORT      wProjNum;           /* Project number for hardware specials. */
-    LONG        fVideoTracking;     /* Video tracking available. */
+    CHAR        fVideoTracking;     /* Video tracking available. */
+    CHAR        fScaleLPF;          /* Low-pass filter breakpoint scaling.
+                                       If FALSE, values in anLPF[] are
+                                       absolute.  If TRUE, values in anLPF[]
+                                       should be multiplied by the digitization
+                                       frequency and divided by
+                                       dwFiltScaleFreq.  */
+    CHAR        fScaleHPF;          /* High-pass filter breakpoint scaling.
+                                       If FALSE, values in anHPF[] are
+                                       absolute.  If TRUE, values in anHPF[]
+                                       should be multiplied by the digitization
+                                       frequency and divided by
+                                       dwFiltScaleFreq.  */
+    CHAR        fScaleRFF;          /* Post-rectification filter breakpoint
+                                       scaling.
+                                       If FALSE, values in anRFF[] are
+                                       absolute.  If TRUE, values in anRFF[]
+                                       should be multiplied by the digitization
+                                       frequency and divided by
+                                       dwFiltScaleFreq.  */
     ULONG       dwMinPRF;           /* Minimum PRF in microseconds. */
     ULONG       dwMaxPRF;           /* Maximum PRF in microseconds. */
 } DBPOD_RSPBUF_GET_CAPABILITIES;
@@ -536,7 +601,25 @@ typedef struct TAG_DBPOD_CMDBUF_CHAN_CONFIG
     LONG        nHPF;               /* High pass filter in Hz, 0=disable. */
     LONG        nLPF;               /* Low pass filter in Hz, 0=disable. */
     USHORT      RectifierType;      /* Rectification type. */
-    SHORT       pad2;               /* (padding) */
+    USHORT      wCompatLevel;       /* Compatibility level.
+                                       If wCompatLevel=0 (old application),
+                                       filter frequency scaling is disabled;
+                                       the 'fScaleLPF', 'fScaleHPF', and
+                                       'fScaleRFF' flags in the capabilities
+                                       response will be ignored for backwards
+                                       compatibility reasons so 'nHPF', 'nLPF'
+                                       and 'nRFF' will be matched against the
+                                       absolute values in the capabilities;
+                                       this may result in the wrong filter
+                                       frequencies being applied.
+                                       If wCompatLevel=1 (new application),
+                                       filter frequency scaling is enabled;
+                                       the 'nHPF', 'nLPF' and 'nRFF' values
+                                       are assumed to be set to scaled or
+                                       unscaled values depending on the
+                                       'fScaleHPF', 'fScaleLPF', and
+                                       'fScaleRFF' values in the capabilities
+                                       response. */
     LONG        nRFF;               /* Post rectifier filter (low pass) in Hz. */
     ULONG       nSampleFreq;        /* Digitisation rate (Hz). */
     ULONG       dwDACStart;         /* DAC curve start element.  Must be a multiple of DAC memory page size. */
@@ -1145,7 +1228,7 @@ typedef struct TAG_DBPOD_CHUNK_UT_EOC
  *   ...
  *   1192       4       Peak[15].Amplitude          ?
  *   1196       4       Peak[15].Position           ?
- *   
+ *
  * (second chunk)
  *   1200       4       dwLength                    688 (= 1892 - 1200 - 4)
  *   1204     688       -- remainder of second chunk --

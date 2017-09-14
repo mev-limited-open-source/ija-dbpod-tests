@@ -107,14 +107,16 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
             break;
         }
     }
-    printf("dwRFFScaleFreq=%u, fGlobalRFF=%d, nMinTrigPulse=%d, nChannels=%d, nDACs=%d,\n",
-            msg->dwRFFScaleFreq, msg->fGlobalRFF, msg->nMinTrigPulse,
+    printf("dwFiltScaleFreq=%u, fGlobalRFF=%d, nMinTrigPulse=%d, nChannels=%d, nDACs=%d,\n",
+            msg->dwFiltScaleFreq, msg->fGlobalRFF, msg->nMinTrigPulse,
             msg->nChannels, msg->nDACs);
     printf("nGates=%d, nEncoders=%d, nPots=%d, nPotBits=%d, wProjNum=%u,\n",
             msg->nGates, msg->nEncoders, msg->nPots, msg->nPotBits,
             msg->wProjNum);
-    printf("fVideoTracking=%d, dwMinPRF=%u, dwMaxPRF=%u\n", msg->fVideoTracking,
-            msg->dwMinPRF, msg->dwMaxPRF);
+    printf("fVideoTracking=%d, fScaleLPF=%d, fScaleHPF=%d, fScaleRFF=%d\n",
+            msg->fVideoTracking, msg->fScaleLPF, msg->fScaleHPF,
+            msg->fScaleRFF);
+    printf("dwMinPRF=%u, dwMaxPRF=%u\n", msg->dwMinPRF, msg->dwMaxPRF);
 }
 
 static void dump_msg(const DBPOD_MSGHDR *hdr, int direction)
