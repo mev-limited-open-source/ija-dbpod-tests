@@ -393,7 +393,7 @@ static int do_chan_configs(void)
     m.cmd.nRepeat = 1;
     m.cmd.nTx = 0;
     m.cmd.nRx = 0;
-    m.cmd.nVoltage = 50;
+    m.cmd.nVoltage = 100;
     m.cmd.nPulseWidth = 50;
     m.cmd.nGain = 0;
     m.cmd.nHPF = 0;
