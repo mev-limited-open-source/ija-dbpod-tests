@@ -383,6 +383,7 @@ typedef struct TAG_DBPOD_CMDBUF_START_UT
 
 /* dwFlags values. */
 #define DBPOD_START_UT_DESPARKLE  0x00000001  /* Turn on desparkler. */
+#define DBPOD_START_UT_COMPRESS   0x00000002  /* Turn on compression. */
 
 /* 'Start UT' response buffer is just a message header. */
 typedef struct TAG_DBPOD_RSPBUF_START_UT
@@ -1140,12 +1141,16 @@ typedef DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8    DBPOD_MSGBUF_ASYNC_VIDEO_RAWGREY8;
  ********************************************/
 
 /* Video tracking position as a little-endian bitfield structure.
+ * This also includes a flag to indicate whether the UT data is compressed
+ * and a flag to indicate whether UT data is 8 or 16 bits.
  * Warning: This is non-portable.  Suitable for little-endian Microsoft C. */
 typedef struct TAG_DBPOD_VIDTRK
 {
     unsigned    uYPos   : 10;       /* Video Tracking Y position */
     unsigned    uXPos   : 10;       /* Video Tracking X position */
-    unsigned            : 4;        /* (padding) */
+    unsigned    fUTCompressed : 1;  /* Flag indicating UT data is compressed */
+    unsigned    fUT16Bit : 1;       /* Flag indicating 16-bit UT data */
+    unsigned            : 2;        /* (padding) */
     unsigned    uAmp    : 8;        /* Video Tracking dot amplitude */
 } DBPOD_VIDTRK;
 
@@ -1189,6 +1194,7 @@ typedef struct TAG_DBPOD_CHUNK_UT_SOC
 #define DBPOD_VTYPOS(dwVt)  ((USHORT)((dwVt) & 0x3FF))          /* VT Y pos */
 #define DBPOD_VTXPOS(dwVt)  ((USHORT)(((dwVt) >> 10) & 0x3FF))  /* VT X pos */
 #define DBPOD_VTAMP(dwVt)   ((UCHAR)(((dwVt) >> 24) & 0xFF))    /* VT dot amplitude */
+#define DBPOD_VT_UTCOMPRESSED(dwVt) ((unsigned)(((dwVt) >> 20) & 1)) /* UT data compressed */
 
 /* Each chunk of UT data ends with the following, starting on a 4-byte
  * boundary... */
