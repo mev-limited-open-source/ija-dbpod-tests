@@ -33,7 +33,7 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
     }
     printf("szHwName=\"%.80s\", dwPodVersion=0x%08X, dwPacketVersion=0x%08X,\n",
             msg->szHwName, msg->dwPodVersion, msg->dwPacketVersion);
-    printf("wHardVersion=0x%04X, wDrvVersion=0x%04X, fPower2Avg=%d, fGlobalAvg=%d\n",
+    printf("wHardVersion=0x%04X, wDrvVersion=0x%04X, fPower2Avg=%d, fGlobalAvg=%d,\n",
             msg->wHardVersion, msg->wDrvVersion, msg->fPower2Avg,
             msg->fGlobalAvg);
     printf("fOverlapGates=%d, fDelayTiedToDig=%d, nSampleFormats=%d, fGlobalSampleFormat=%d,\n",
@@ -55,19 +55,22 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
                 ((n % 3 == 2 || n == 15 || n == msg->nDigFreq - 1)
                  ? "\n" : " "));
     }
-    printf("dwMaxDelay=%u, dwMaxRange=%u, nMaxAvg=%d, dwFastMemSize=%u,\n",
-            msg->dwMaxDelay, msg->dwMaxRange, msg->nMaxAvg, msg->dwFastMemSize);
-    printf("dwFifoMemSize=%u, dwDacMemSize=%u, dwDacMemPageSize=%u,\n",
-            msg->dwFifoMemSize, msg->dwDacMemSize, msg->dwDacMemPageSize);
-    printf("fPower2DacDivisor=%d, nMinDacDivisor=%d, nMaxDacDivisor=%d,\n",
-            msg->fPower2DacDivisor, msg->nMinDacDivisor, msg->nMaxDacDivisor);
-    printf("nMinHT=%d, nMaxHT=%d, nHTResolution=%d, fGlobalHT=%d,\n",
-            msg->nMinHT, msg->nMaxHT, msg->nHTResolution, msg->fGlobalHT);
-    printf("fGlobalPW=%d, nMinPW=%d, nMaxPW=%d, nPWResolution=%d, nMaxPulserPower=%d,\n",
-            msg->fGlobalPW, msg->nMinPW, msg->nMaxPW, msg->nPWResolution,
-            msg->nMaxPulserPower);
-    printf("nMinGain=%d, nMaxGain=%d, nGainResolution=%d, nLowPass=%d,\n",
-            msg->nMinGain, msg->nMaxGain, msg->nGainResolution, msg->nLowPass);
+    printf("dwMaxDelay=%u, dwMaxRange=%u, nMaxAvg=%d, bHardType=%u,\n",
+            msg->dwMaxDelay, msg->dwMaxRange, msg->nMaxAvg, msg->bHardType);
+    printf("bAFEType=%u, dwFastMemSize=%u, dwFifoMemSize=%u,\n",
+            msg->bAFEType, msg->dwFastMemSize, msg->dwFifoMemSize);
+    printf("dwDacMemSize=%u, dwDacMemPageSize=%u, fPower2DacDivisor=%d,\n",
+            msg->dwDacMemSize, msg->dwDacMemPageSize, msg->fPower2DacDivisor);
+    printf("nMinDacDivisor=%d, nMaxDacDivisor=%d, nMinHT=%d, nMaxHT=%d,\n",
+            msg->nMinDacDivisor, msg->nMaxDacDivisor, msg->nMinHT, msg->nMaxHT);
+    printf("nHTResolution=%d, fGlobalHT=%d, fGlobalPW=%d, nMinPW=%d, nMaxPW=%d,\n",
+            msg->nHTResolution, msg->fGlobalHT, msg->fGlobalPW, msg->nMinPW,
+            msg->nMaxPW);
+    printf("nPWResolution=%d, nMaxPulserPower=%d, nMinGain=%d, nMaxGain=%d,\n",
+            msg->nPWResolution, msg->nMaxPulserPower, msg->nMinGain,
+            msg->nMaxGain);
+    printf("nGainResolution=%d, nLowPass=%d,\n",
+            msg->nGainResolution, msg->nLowPass);
     for (n = 0; n < 16; n++)
     {
         int last = msg->nLowPass < 0 ? n == 1
@@ -107,13 +110,13 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
             break;
         }
     }
-    printf("dwFiltScaleFreq=%u, fGlobalRFF=%d, nMinTrigPulse=%d, nChannels=%d, nDACs=%d,\n",
+    printf("dwFiltScaleFreq=%u, fGlobalRFF=%d, nMinTrigPulse=%d, nChannels=%d,\n",
             msg->dwFiltScaleFreq, msg->fGlobalRFF, msg->nMinTrigPulse,
-            msg->nChannels, msg->nDACs);
-    printf("nGates=%d, nEncoders=%d, nPots=%d, nPotBits=%d, wProjNum=%u,\n",
-            msg->nGates, msg->nEncoders, msg->nPots, msg->nPotBits,
+            msg->nChannels);
+    printf("nDACS=%d, nGates=%d, nEncoders=%d, nPots=%d, nPotBits=%d, wProjNum=%u,\n",
+            msg->nDACs, msg->nGates, msg->nEncoders, msg->nPots, msg->nPotBits,
             msg->wProjNum);
-    printf("fVideoTracking=%d, fScaleLPF=%d, fScaleHPF=%d, fScaleRFF=%d\n",
+    printf("fVideoTracking=%d, fScaleLPF=%d, fScaleHPF=%d, fScaleRFF=%d,\n",
             msg->fVideoTracking, msg->fScaleLPF, msg->fScaleHPF,
             msg->fScaleRFF);
     printf("dwMinPRF=%u, dwMaxPRF=%u\n", msg->dwMinPRF, msg->dwMaxPRF);
