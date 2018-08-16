@@ -148,18 +148,12 @@ extern "C" {
  *   'fScaleHPF', 'fScaleLPF', and 'fScaleRFF' settings in the capabilities)
  *   versions of the supported values listed in the capabilities.
  * --------------------------------------------------------------------
- * Packet version 0x40003 has changes for setting input impedance where
- * supported by the hardware.
+ * Packet version 0x40003 has changes for setting a hardware-specific
+ * channel configuration value, e.g. for setting input impedance and
+ * pre-amplification.
  *
- * DBPOD_CMDBUF_CHAN_CONFIG now has the 'wImpedance' member replacing the
- * 'pad3' member:
- *
- *   If 'wImpedance' is 0 (old application) a default input impedance will be
- *   used.
- *
- *   If 'wImpedance' non-0, it specifies the desired input impedance in ohms.
- *   The driver will set the hardware to use the closest supported input
- *   impedance.
+ * DBPOD_CMDBUF_CHAN_CONFIG now has the 'wSpecial' member replacing the
+ * 'pad3' member.
  *
  * DBPOD_RSPBUF_GET_CAPABILITIES now has the 'bHardType' and 'bAFEType'
  * members replacing the 'pad3' member:
@@ -667,7 +661,7 @@ typedef struct TAG_DBPOD_CMDBUF_CHAN_CONFIG
     USHORT      nDACDivisor;        /* DAC output frequency divisor relative to Dig Freq */
     USHORT      DacTrigger;         /* DAC trigger, 0=TX pulse, 1=Interface trigger. */
     SHORT       nGates;             /* Number of gates defined. */
-    USHORT      wImpedance;         /* Desired input impedance (ohms), or 0 for default. */
+    USHORT      wSpecial;           /* Hardware-specific setting. */
     DBPOD_GATECFG  Gate[DBPOD_ANYLENGTH]; /* Gates. */
 } DBPOD_CMDBUF_CHAN_CONFIG;
 /* Basic size of DBPOD_CMDBUF_CHAN_CONFIG type without Gate[]. */
