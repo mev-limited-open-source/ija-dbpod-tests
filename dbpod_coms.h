@@ -40,7 +40,7 @@ extern "C" {
  * 4. The elementary types used are as follows:
  *
  *      CHAR   - plain 8-bit character
- *      SCHAR  - signed 8-bit integer
+ *      INT8   - signed 8-bit integer
  *      UCHAR  - unsigned 8-bit integer
  *      SHORT  - signed 16-bit integer
  *      USHORT - unsigned 16-bit integer
@@ -147,8 +147,36 @@ extern "C" {
  *   values will be matched against unscaled or scaled (depending on the
  *   'fScaleHPF', 'fScaleLPF', and 'fScaleRFF' settings in the capabilities)
  *   versions of the supported values listed in the capabilities.
+ * --------------------------------------------------------------------
+ * Packet version 0x40003 has changes for setting input impedance where
+ * supported by the hardware.
+ *
+ * DBPOD_CMDBUF_CHAN_CONFIG now has the 'wImpedance' member replacing the
+ * 'pad3' member:
+ *
+ *   If 'wImpedance' is 0 (old application) a default input impedance will be
+ *   used.
+ *
+ *   If 'wImpedance' non-0, it specifies the desired input impedance in ohms.
+ *   The driver will set the hardware to use the closest supported input
+ *   impedance.
+ *
+ * DBPOD_RSPBUF_GET_CAPABILITIES now has the 'bHardType' and 'bAFEType'
+ * members replacing the 'pad3' member:
+ *
+ *   bHardType values:
+ *
+ *     0 (DBPOD_HARDTYPE_ORIG_ETH) = Classic Ethernet Pod (Nios II).
+ *     1 (DBPOD_HARDTYPE_FAST_ETH) = "Fast" Ethernet Pod (ARM).
+ *     2 (DBPOD_HARDTYPE_MINI_ETH) = Ethernet Mini Pod (ARM).
+ *     3 (DBPOD_HARDTYPE_MINI_USB) = USB3.0 Mini Pod (FTDI).
+ *
+ *   bAFEType values:
+ *
+ *     0 (DBPOD_AFETYPE_ORIGINAL)  = Classic Ethernet Pod or Fast Pod.
+ *     1 (DBPOD_AFETYPE_MAX2077)   = MAX2077 - Mini Pod (Ethernet or USB).
  */
-#define DBPOD_CURRENT_PACKET_VERSION    0x40002
+#define DBPOD_CURRENT_PACKET_VERSION    0x40003
 
 /*
  * Message Header.
@@ -225,7 +253,8 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     ULONG       dwMaxDelay;         /* Maximum delay before digitiser in nanoseconds. */
     ULONG       dwMaxRange;         /* Maximum digitiser range in nanoseconds. */
     SHORT       nMaxAvg;            /* Maximum averaging value. */
-    SHORT       pad3;               /* (padding) */
+    UCHAR       bHardType;          /* Hardware type code. */
+    UCHAR       bAFEType;           /* Hardware AFE type code. */
     ULONG       dwFastMemSize;      /* ADC fast memory size in bytes. */
     ULONG       dwFifoMemSize;      /* ADC results FIFO size in bytes. */
     ULONG       dwDacMemSize;       /* DAC memory size in DAC curve elements. */
@@ -296,6 +325,16 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     ULONG       dwMinPRF;           /* Minimum PRF in microseconds. */
     ULONG       dwMaxPRF;           /* Maximum PRF in microseconds. */
 } DBPOD_RSPBUF_GET_CAPABILITIES;
+
+/* Hardware type codes. */
+#define DBPOD_HARDTYPE_ORIG_ETH     0   /* Classic Ethernet Pod (Nios II). */
+#define DBPOD_HARDTYPE_FAST_ETH     1   /* Fast Ethernet Pod (ARM). */
+#define DBPOD_HARDTYPE_MINI_ETH     2   /* Ethernet Mini Pod (ARM). */
+#define DBPOD_HARDTYPE_MINI_USB     3   /* USB3.0 Mini Pod (FTDI). */
+
+/* Hardware AFE type codes. */
+#define DBPOD_AFETYPE_ORIGINAL      0   /* Classic Ethernet Pod or Fast Pod. */
+#define DBPOD_AFETYPE_MAX2077       1   /* MAX2077 - Mini Pod (Ether or USB). */
 
 /********************************************
  *
@@ -628,7 +667,7 @@ typedef struct TAG_DBPOD_CMDBUF_CHAN_CONFIG
     USHORT      nDACDivisor;        /* DAC output frequency divisor relative to Dig Freq */
     USHORT      DacTrigger;         /* DAC trigger, 0=TX pulse, 1=Interface trigger. */
     SHORT       nGates;             /* Number of gates defined. */
-    SHORT       pad3;               /* (padding) */
+    USHORT      wImpedance;         /* Desired input impedance (ohms), or 0 for default. */
     DBPOD_GATECFG  Gate[DBPOD_ANYLENGTH]; /* Gates. */
 } DBPOD_CMDBUF_CHAN_CONFIG;
 /* Basic size of DBPOD_CMDBUF_CHAN_CONFIG type without Gate[]. */
