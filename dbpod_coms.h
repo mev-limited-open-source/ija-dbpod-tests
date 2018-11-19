@@ -6,7 +6,7 @@
  *
  * db-Pod Communications Messages
  *
- * Copyright (c) 2008-2017 MEV Ltd., Bell Technology Ltd.
+ * Copyright (c) 2008-2018 MEV Ltd., Bell Technology Ltd.
  * All rights reserved.
  *
  * MODULE CONTENTS
@@ -169,8 +169,91 @@ extern "C" {
  *
  *     0 (DBPOD_AFETYPE_ORIGINAL)  = Classic Ethernet Pod or Fast Pod.
  *     1 (DBPOD_AFETYPE_MAX2077)   = MAX2077 - Mini Pod (Ethernet or USB).
+ * --------------------------------------------------------------------
+ * Packet version 0x40004 has changes to the encoder configuration command for
+ * configuring external resets, and supports a "maximum" mode for the average
+ * gate, a "sorted peaks" mode for the peaks gate, and a new scan type for use
+ * with "maximum" mode.  There is also an option for including readings from
+ * all four quadrature encoders in the UT data, replacing some of the peaks in
+ * the message.
+ *
+ * DBPOD_CMDBUF_ENCODER_CONFIG has replaced the ULONG 'dwDifferential' and
+ * 'dwInvertSense' members with USHORT 'wDifferential', 'wResetEnable',
+ * 'wInvertSense' and 'wResetSource' members, and is the same size as before.
+ *
+ * For channel configuration commands, the "averaging" gate supports a new
+ * "maximum" mode.  This produces the extreme values (those with largest
+ * absolute value) at each sample position from a set of passes instead of the
+ * usual "mean" value.  The "maximum" mode is enabled by setting the 'nControl'
+ * member of the averaging gate to DBPOD_AVERAGING_MAX.
+ *
+ *   Averaging gate nControl values:
+ *
+ *     0 (DBPOD_AVERAGING_MEAN) - produces the mean values
+ *     1 (DBPOD_AVERAGING_MAX)  - (new) produces the maximum (extreme) values
+ *
+ * "Maximum" mode works for FPGA version 7 or later (as reported by the
+ * 'wHardVersion' member of the 'Get Capabilities' response).
+ *
+ * Also for channel configuration commands, the "peaks" gate supports a new
+ * "sorted peaks" mode.  This sorts the peaks in descending order of size.
+ * The "sorted peaks" mode is enabled by setting the peak type in bits 15 to 8
+ * of the 'nControl' member of the peaks gate to DBPOD_PEAKTYPE_SORTED.  Note
+ * that bits 7 to 0 of the 'nControl' member sets the number of peaks required,
+ * but this is currently ignored.
+ *
+ *   Peak gate nControl values:
+ *
+ *     DBPOD_PEAKS_NCONTROL(num, type)
+ *
+ *       num  - number of peaks (currently ignored)
+ *       type - peak type
+ *
+ *       Peak type values (bits 15 to 8 of nControl):
+ *
+ *         0 (DBPOD_PEAKTYPE_FIRST_N_POS) - first n positive peaks
+ *         1 (DBPOD_PEAKTYPE_FIRST_N)     - first n bipolar peaks
+ *         2 (DBPOD_PEAKTYPE_SORTED)      - (new) sorted peaks
+ *
+ *       (Note that current hardware always produces bipolar peaks and the
+ *       "number of peaks" value is ignored.)
+ *
+ * "Sorted peaks" mode works for FPGA version 7 or later (as reported by the
+ * 'wHardVersion' member of the 'Get Capabilities' response).
+ *
+ * The 'ScanType' member of DBPOD_CMDBUF_SCAN_CONFIG supports an additional
+ * value, DBPOD_SCAN_FREEPOSITION.  This is like free-run mode, but changes
+ * in scan position may have additional effects.  This is for use with the
+ * new "maximum" UT mode, where it results in production of maximised UT
+ * data from all sweeps since the previous change in scan position.
+ *
+ *   Scan configuration 'ScanType' values:
+ *
+ *     0 (DBPOD_SCAN_FREERUN)        - free-run mode
+ *     1 (DBPOD_SCAN_TIEDTOPOSITION) - tied-to-position mode
+ *     2 (DBPOD_SCAN_FREEPOSITION)   - (new) "free position" mode
+ *
+ * "Free position" mode works for FPGA version 7 or later (as reported by
+ * the 'wHardVersion' member of the 'Get Capabilities' response).
+ *
+ * The 'dwFlags' member of DBPOD_CMDBUF_START_UT has an additional bit-mask
+ * flag value DBPOD_START_UT_EXTRA_ENCS.  OR'ing DBPOD_START_UT_EXTRA into
+ * dwFlags results in encoder readings beyond encoders 0 and 1 appearing at
+ * the end of the UT data in place of some of the peaks.
+ *
+ *   dwFlags bit-mask values:
+ *
+ *     0x0001 (DBPOD_START_UT_DESPARKLE)  - turn on desparkler
+ *     0x0002 (DBPOD_START_UT_COMPRESS)   - turn on compression
+ *     0x0004 (DBPOD_START_UT_EXTRA_ENCS) - (new) extra encoders in UT
+ *
+ *   (Note: the "compress" option is reserved for future use.  The "desparkle"
+ *   option is a legacy option which may have no effect on current hardware.)
+ *
+ * This works for FPGA version 7 or later (as reported by the 'wHardVersion'
+ * member of the 'Get Capabilities' response).
  */
-#define DBPOD_CURRENT_PACKET_VERSION    0x40003
+#define DBPOD_CURRENT_PACKET_VERSION    0x40004
 
 /*
  * Message Header.
@@ -417,6 +500,11 @@ typedef struct TAG_DBPOD_CMDBUF_START_UT
 /* dwFlags values. */
 #define DBPOD_START_UT_DESPARKLE  0x00000001  /* Turn on desparkler. */
 #define DBPOD_START_UT_COMPRESS   0x00000002  /* Turn on compression. */
+#define DBPOD_START_UT_EXTRA_ENCS 0x00000004  /* Extra encoders. */
+/*
+ * Note: see the description of DBPOD_CHUNK_UT_EOC for the effect of setting
+ * DBPOD_START_UT_EXTRA_ENCS.
+ */
 
 /* 'Start UT' response buffer is just a message header. */
 typedef struct TAG_DBPOD_RSPBUF_START_UT
@@ -600,17 +688,22 @@ typedef struct TAG_DBPOD_GATECFG
  * nControl depends on GateType
  */
 
+ /* nControl for DBPOD_GATETYPE_AVERAGING. */
+#define DBPOD_AVERAGING_MEAN        0
+#define DBPOD_AVERAGING_MAX         1
+
 /* nControl for DBPOD_GATETYPE_INTERFACE and DBPOD_GATETYPE_LOSS_SIG is polarity. */
 #define DBPOD_POLARITY_UNIPOLAR     0
 #define DBPOD_POLARITY_BIPOLAR      1
 
 /* nControl for DBPOD_GATETYPE_PEAK is split into number of peaks (bits 7 to 0)
- * and peak type (bits 15 to 8).  These are currently ignored by db-Pod! */
+ * and peak type (bits 15 to 8).  Only SORTED is currently supported by db-Pod */
 #define DBPOD_PEAKS_NCONTROL(num, type) (((num) & 255) | ((type) << 8))
 #define DBPOD_PEAKS_NUM(nControl)       ((nControl) & 255)
 #define DBPOD_PEAKS_TYPE(nControl)      (((nControl) >> 8) & 255)
 #define DBPOD_PEAKTYPE_FIRST_N_POS      0   /* First n Positive peaks */
 #define DBPOD_PEAKTYPE_FIRST_N          1   /* First n Bipolar (pos&neg) peaks*/
+#define DBPOD_PEAKTYPE_SORTED           2   /* Sorted peaks number ignored */
 
 /*
  * lParameter depends on GateType
@@ -729,8 +822,10 @@ typedef struct TAG_DBPOD_RSPBUF_DAC_MEMORY_SET
 typedef struct TAG_DBPOD_CMDBUF_ENCODER_CONFIG
 {
     DBPOD_MSGHDR hdr;               /* Message header. */
-    ULONG       dwDifferential;     /* Differential inputs - bitmask (bit == axis). */
-    ULONG       dwInvertSense;      /* Invert encoder - bitmask (bit == axis). */
+    USHORT      wDifferential;      /* Differential inputs - bitmask (bit == axis). */
+    USHORT      wResetEnable;       /* Enable ext. resets - bitmask (bit == axis). */
+    USHORT      wInvertSense;       /* Invert encoder - bitmask (bit == axis). */
+    USHORT      wResetSource;       /* External reset source. */
 } DBPOD_CMDBUF_ENCODER_CONFIG;
 
 /* 'Encoder Config' response buffer is just a message header. */
@@ -814,6 +909,7 @@ typedef struct TAG_DBPOD_CMDBUF_VIDEO_CONFIG
  */
 #define DBPOD_VID_UNKNOWN_FORMAT    (-1)
 #define DBPOD_VID_RAWGREY8          0
+#define DBPOD_VID_RAWGREY8VT        1
 
 /* 'Video Config' response buffer is just a message header. */
 typedef struct TAG_DBPOD_RSPBUF_VIDEO_CONFIG
@@ -843,6 +939,7 @@ typedef struct TAG_DBPOD_CMDBUF_SCAN_CONFIG
 /* Scan types. */
 #define DBPOD_SCAN_FREERUN          0
 #define DBPOD_SCAN_TIEDTOPOSITION   1
+#define DBPOD_SCAN_FREEPOSITION     2
 
 /* 'Scan Config' response buffer is just a message header. */
 typedef struct TAG_DBPOD_RSPBUF_SCAN_CONFIG
@@ -1080,8 +1177,47 @@ typedef struct TAG_DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8
     FIELD_OFFSET(DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8, bPixels[0])
 /* Followed by array UCHAR bPixels[nWidth*nHeight]. */
 
+/* Video tracking position as a little-endian bitfield structure.
+* This also includes a flag to indicate whether the UT data is compressed
+* and a flag to indicate whether UT data is 8 or 16 bits.
+* Warning: This is non-portable.  Suitable for little-endian Microsoft C. */
+typedef struct TAG_DBPOD_VIDTRK
+{
+    unsigned    uYPos : 10;         /* Video Tracking Y position */
+    unsigned    uXPos : 10;         /* Video Tracking X position */
+    unsigned    fUTCompressed : 1;  /* Flag indicating UT data is compressed */
+    unsigned    fUT16Bit : 1;       /* Flag indicating 16-bit UT data */
+    unsigned     : 2;               /* (padding) */
+    unsigned    uAmp : 8;           /* Video Tracking dot amplitude */
+} DBPOD_VIDTRK;
+
+/* A "raw 8-bit grey" 'Synchronous Video Data' response buffer.
+* nFormat == DBPOD_VID_RAWGREY8VT. */
+typedef struct TAG_DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8VT
+{
+    DBPOD_MSGHDR hdr;               /* Message header. */
+    SHORT       nFormat;            /* Video block format. 0 = 8-bit raw grey. */
+    SHORT       nWidth;             /* Width of frame in pixels. */
+    SHORT       nHeight;            /* Height of frame in pixels. */
+                                    /* nBitsPerPixel will appear in all the 'raw' frame formats. */
+    UCHAR       nBitsPerPixel;      /* Number of bits per pixel (8). */
+    UCHAR       bFlags;             /* Flags (see below). */
+    union
+    {
+        DBPOD_VIDTRK    vt;         /* Video tracking info as a bitfield. */
+        ULONG           dwVt;       /* Video tracking info as ULONG. */
+    };                              /* Anonymous union of 'vt' and 'dwVt'. */
+    UCHAR       bPixels[DBPOD_ANYLENGTH]; /* 8-bit pixel data in TV raster order. */
+                                          /* N.B. the pixel data consists of two half-frame fields which the
+                                          * application should interleave to form a full-frame image.  */
+} DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8VT;
+/* Basic size of DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8VT without bPixels[]. */
+#define BASE_SIZE_DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8VT  \
+    FIELD_OFFSET(DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8VT, bPixels[0])
+/* Followed by array UCHAR bPixels[nWidth*nHeight]. */
+
 /*
- * RAWGREY8 format flags.
+ * RAWGREY8 and RAWGREY8VT format flags.
  *
  * If DBPOD_VID_FLAG_RAW_TO_BE_INTERLACED is set, the raw data
  * consists of two fields that need interlacing.
@@ -1173,20 +1309,6 @@ typedef DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8    DBPOD_MSGBUF_ASYNC_VIDEO_RAWGREY8;
  *
  ********************************************/
 
-/* Video tracking position as a little-endian bitfield structure.
- * This also includes a flag to indicate whether the UT data is compressed
- * and a flag to indicate whether UT data is 8 or 16 bits.
- * Warning: This is non-portable.  Suitable for little-endian Microsoft C. */
-typedef struct TAG_DBPOD_VIDTRK
-{
-    unsigned    uYPos   : 10;       /* Video Tracking Y position */
-    unsigned    uXPos   : 10;       /* Video Tracking X position */
-    unsigned    fUTCompressed : 1;  /* Flag indicating UT data is compressed */
-    unsigned    fUT16Bit : 1;       /* Flag indicating 16-bit UT data */
-    unsigned            : 2;        /* (padding) */
-    unsigned    uAmp    : 8;        /* Video Tracking dot amplitude */
-} DBPOD_VIDTRK;
-
 /* Interface/Peak format. */
 typedef struct TAG_DBPOD_PEAK
 {
@@ -1231,6 +1353,12 @@ typedef struct TAG_DBPOD_CHUNK_UT_SOC
 
 /* Each chunk of UT data ends with the following, starting on a 4-byte
  * boundary... */
+/*
+ * Note: if DBPOD_START_UT_EXTRA_ENCS was set in the dwFlags member of
+ * DBPOD_CMDBUF_START_UT when the starting UT acquisition, the final elements
+ * of Peak[] may be replaced with readings from the extra quadrature encoders
+ * that don't fit in the lQuadPos[] member of DBPOD_CHUNK_UT_SOC.
+ */
 typedef struct TAG_DBPOD_CHUNK_UT_EOC
 {
     LONG        fLossSig;           /* Loss of signal flag */
