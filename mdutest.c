@@ -453,9 +453,9 @@ static int do_mdu_data(void)
     int err;
 
     datalen = strlen(mdu_data);
-    if (datalen > MAXUSHORT)
+    if (datalen > 0xFFFF)
     {
-        datalen = MAXUSHORT;
+        datalen = 0xFFFF;
     }
     msglen = offsetof(DBPOD_CMDBUF_MDU_DATA, bData[datalen]);
     cmd = malloc(msglen);
@@ -609,7 +609,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --mdu='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXUCHAR)
+            else if (tmp > 0xFF)
             {
                 fprintf(stderr, "MDU port %lu out of range\n", tmp);
                 err = 1;

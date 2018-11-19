@@ -6,7 +6,7 @@
  *
  * db-Pod Communications Messages - Fake Windows Types For Linux
  *
- * Copyright (c) 2008 MEV Ltd., Bell Technology Ltd.
+ * Copyright (c) 2008-2018 MEV Ltd., Bell Technology Ltd.
  * All rights reserved.
  *
  * MODULE CONTENTS
@@ -23,6 +23,9 @@
  *
  */
 
+#ifdef _WIN32
+#include <Windows.h>
+#else
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
@@ -34,14 +37,13 @@ extern "C" {
 #endif
 
 typedef char CHAR, *PCHAR;
-typedef int8_t SCHAR, *PSCHAR;
-typedef uint8_t UCHAR, *PUCHAR;
+typedef unsigned char UCHAR, *PUCHAR;
 
 typedef int16_t SHORT, *PSHORT;
 typedef uint16_t USHORT, *PUSHORT;
 
-typedef int INT, *PINT, *LPINT;
-typedef unsigned int UINT, *PUINT;
+typedef int32_t INT, *PINT, *LPINT;
+typedef uint32_t UINT, *PUINT;
 
 /* LONG is 32-bits even on 64-bit machines.  May need to cast printf args. */
 typedef int32_t LONG, *PLONG, *LPLONG;
@@ -49,6 +51,15 @@ typedef uint32_t ULONG, *PULONG;
 
 typedef int64_t LONGLONG, *PLONGLONG;
 typedef uint64_t ULONGLONG, *PULONGLONG;
+
+typedef int8_t INT8, *PINT8;
+typedef uint8_t UINT8, *PUINT8;
+typedef int16_t INT16, *PINT16;
+typedef uint16_t UINT16, *PUINT16;
+typedef int32_t INT32, *PINT32;
+typedef uint32_t UINT32, *PUINT32;
+typedef int64_t INT64, *PINT64;
+typedef uint64_t UINT64, *PUINT64;
 
 typedef LONG BOOL, *PBOOL, *LPBOOL;
 typedef UCHAR BOOLEAN, *PBOOLEAN;
@@ -77,36 +88,12 @@ typedef FILETIME *PFILETIME, *LPFILETIME;
 #define FALSE   0
 #define TRUE    1
 
-#define MINCHAR     0x80    /* Assumes CHAR is signed! */
-#define MAXCHAR     0x7F    /* Assumes CHAR is signed! */
-#define MINSHORT    0x8000
-#define MAXSHORT    0x7FFF
-#define MINLONG     0x80000000
-#define MAXLONG     0x7FFFFFFF
-#define MINLONGLONG 0x800000000000000000000000
-#define MAXLONGLONG 0x7FFFFFFFFFFFFFFFFFFFFFFF
-#define MAXUCHAR    0xFF
-#define MAXUSHORT   0xFFFF
-#define MAXULONG    0xFFFFFFFF
-#define MAXULONGLONG 0xFFFFFFFFFFFFFFFFFFFFFFFF
-#define MAXUINT_PTR (~((UINT_PTR)0))
-#define MAXINT_PTR  ((INT_PTR)(MAXUINT_PTR >> 1))
-#define MININT_PTR  (~MAXINT_PTR)
-#define MAXULONG_PTR (~((ULONG_PTR)0))
-#define MAXLONG_PTR ((LONG_PTR)(MAXULONG_PTR >> 1))
-#define MINLONG_PTR (~MAXLONG_PTR)
-#define MAXBYTE     0xFF
-#define MAXWORD     0xFFFF
-#define MAXDWORD    0xFFFFFFFF
-
-#define FIELD_OFFSET(type, field)   ((LONG)(LONG_PTR)&(((type *)0)->field))
-
-#define CONTAINING_RECORD(address, type, field) ((type *)( \
-            (PCHAR)(address) - \
-            (ULONG_PTR)(&((type *)0)->field)))
+#define FIELD_OFFSET(type, field)   offsetof(type, field)
 
 #if defined(__cplusplus)
 }
+#endif
+
 #endif
 
 /* vi: set ai et sw=4 ts=4: */

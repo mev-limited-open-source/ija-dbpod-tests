@@ -429,7 +429,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --frame-rate='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT)
+            else if (tmp > 32767)
             {
                 fprintf(stderr, "Frame rate %lu out of range\n", tmp);
                 err = 1;
@@ -462,7 +462,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --frame-size='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT || tmp2 > MAXSHORT)
+            else if (tmp > 32767 || tmp2 > 32767)
             {
                 fprintf(stderr, "Frame size %lu,%lu out of range\n", tmp, tmp2);
                 err = 1;
@@ -496,7 +496,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --origin='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT || tmp2 > MAXSHORT)
+            else if (tmp > 32767 || tmp2 > 32767)
             {
                 fprintf(stderr, "Origin %lu,%lu out of range\n", tmp, tmp2);
                 err = 1;
@@ -530,7 +530,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --crop-size='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT || tmp2 > MAXSHORT)
+            else if (tmp > 32767 || tmp2 > 32767)
             {
                 fprintf(stderr, "Crop size %lu,%lu out of range\n", tmp, tmp2);
                 err = 1;
@@ -550,7 +550,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --rate-scale='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT)
+            else if (tmp > 32767)
             {
                 fprintf(stderr, "Rate scale %lu out of range\n", tmp);
                 err = 1;
@@ -569,7 +569,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --size-scale='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT)
+            else if (tmp > 32767)
             {
                 fprintf(stderr, "Size scale %lu out of range\n", tmp);
                 err = 1;
@@ -591,7 +591,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --led-threshold='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT)
+            else if (tmp > 32767)
             {
                 fprintf(stderr, "LED threshold %lu out of range\n", tmp);
                 err = 1;
@@ -610,7 +610,7 @@ int main(int argc, char *argv[])
                 fprintf(stderr, "Option --dot-threshold='%s' invalid\n", optarg);
                 err = 1;
             }
-            else if (tmp > MAXSHORT)
+            else if (tmp > 32767)
             {
                 fprintf(stderr, "Dot threshold %lu out of range\n", tmp);
                 err = 1;
