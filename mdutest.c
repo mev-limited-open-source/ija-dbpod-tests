@@ -62,74 +62,56 @@ static void print_dqescape(const char *s, size_t len)
 {
     size_t n;
 
-    /* Check for funny characters. */
     for (n = 0; n < len; n++)
     {
         int c = s[n];
         int uc = (unsigned char)s[n];
 
-        if (!isprint(uc) || c == '"' || c == '\'' || c == '\\')
+        if (isprint(uc) && c != '"' && c != '\\')
         {
-            break;
+            putc(c, stdout);
         }
-    }
-    if (n < len)
-    {
-        for (n = 0; n < len; n++)
+        else
         {
-            int c = s[n];
-            int uc = (unsigned char)s[n];
+            int e = EOF;
 
-            if (isprint(uc) && c != '"' && c != '\\')
+            switch (c)
             {
-                putc(c, stdout);
+            case '"':
+            case '\\':
+                e = c;
+                break;
+            case '\a':
+                e = 'a';
+                break;
+            case '\b':
+                e = 'b';
+                break;
+            case '\f':
+                e = 'f';
+                break;
+            case '\n':
+                e = 'n';
+                break;
+            case '\r':
+                e = 'r';
+                break;
+            case '\t':
+                e = 't';
+                break;
+            case '\v':
+                e = 'v';
+                break;
+            }
+            if (e == EOF)
+            {
+                printf("\\x%02X", uc);
             }
             else
             {
-                int e = EOF;
-
-                switch (c)
-                {
-                case '"':
-                case '\\':
-                    e = c;
-                    break;
-                case '\a':
-                    e = 'a';
-                    break;
-                case '\b':
-                    e = 'b';
-                    break;
-                case '\f':
-                    e = 'f';
-                    break;
-                case '\n':
-                    e = 'n';
-                    break;
-                case '\r':
-                    e = 'r';
-                    break;
-                case '\t':
-                    e = 't';
-                    break;
-                case '\v':
-                    e = 'v';
-                    break;
-                }
-                if (e == EOF)
-                {
-                    printf("\\x%02X", uc);
-                }
-                else
-                {
-                    printf("\\%c", e);
-                }
+                printf("\\%c", e);
             }
         }
-    }
-    else
-    {
-        fputs(s, stdout);
     }
 }
 
