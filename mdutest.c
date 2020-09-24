@@ -136,9 +136,19 @@ static void print_dqescape(const char *s, size_t len)
 static void dump_mdu_data(const DBPOD_MSGHDR *hdr)
 {
     /* Command and response have same format. */
-    const DBPOD_CMDBUF_MDU_DATA *msg = (const DBPOD_CMDBUF_MDU_DATA *)hdr;
-    unsigned datalen = msg->wLength;
+    const DBPOD_CMDBUF_MDU_DATA *msg;
+    unsigned datalen;
 
+    /* Might be too short due to error response. */
+    if (hdr->dwLength <
+            offsetof(DBPOD_CMDBUF_MDU_DATA, bData[0]) - sizeof(ULONG))
+    {
+        printf("*** Crappy MDU data command/response message len %u\n",
+                hdr->dwLength); 
+        return;
+    }
+    msg = (const DBPOD_CMDBUF_MDU_DATA *)hdr;
+    datalen = msg->wLength;
     printf("dwTimeout=%u ms, wLength=%u, nPort=%u, fContinuation=%d,\n",
             (unsigned)msg->dwTimeout, msg->wLength, msg->nPort,
             msg->fContinuation);
