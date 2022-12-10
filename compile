@@ -4,7 +4,7 @@ while [ $# != 0 ]; do
 	exe=`basename "$1" .c`
 	src="$exe.c"
 	echo "*** Compiling $src to $exe ***"
-	gcc -O2 -I. -lm -o "$exe" "$src" || exit $?
+	gcc -O2 -I. "$src" -o "$exe" -lm || exit $?
 	shift
 done
 
