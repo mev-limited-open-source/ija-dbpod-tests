@@ -293,6 +293,7 @@ static int do_cmd(const DBPOD_MSGHDR *cmdhdr)
             return -1;
         }
         left -= ret;
+        s += ret;
     }
     return expect_reply(cmdhdr->wCmd | DBPOD_MSGFLAG_SYNC_RESPONSE,
             cmdhdr->dwSequence);
