@@ -26,9 +26,14 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
     ULONG size = msg->hdr.dwLength + sizeof(msg->hdr.dwLength);
     unsigned int n;
     
-    if (size != sizeof(*msg))
+    if (size < ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, dwMaxPRF))
     {
-        printf("wrong length!\n");
+        printf("length below minimum for capabilities!\n");
+        return;
+    }
+    else if (size > sizeof(*msg))
+    {
+        printf("length longer than expected!\n");
         return;
     }
     printf("szHwName=\"%.80s\", dwPodVersion=0x%08X, dwPacketVersion=0x%08X,\n",
@@ -63,14 +68,12 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
             msg->dwDacMemSize, msg->dwDacMemPageSize, msg->fPower2DacDivisor);
     printf("nMinDacDivisor=%d, nMaxDacDivisor=%d, nMinHT=%d, nMaxHT=%d,\n",
             msg->nMinDacDivisor, msg->nMaxDacDivisor, msg->nMinHT, msg->nMaxHT);
-    printf("nHTResolution=%d, fGlobalHT=%d, fGlobalPW=%d, nMinPW=%d, nMaxPW=%d,\n",
-            msg->nHTResolution, msg->fGlobalHT, msg->fGlobalPW, msg->nMinPW,
-            msg->nMaxPW);
-    printf("nPWResolution=%d, nMaxPulserPower=%d, nMinGain=%d, nMaxGain=%d,\n",
-            msg->nPWResolution, msg->nMaxPulserPower, msg->nMinGain,
-            msg->nMaxGain);
-    printf("nGainResolution=%d, nLowPass=%d,\n",
-            msg->nGainResolution, msg->nLowPass);
+    printf("nHTResolution=%d, bPAType=%u, fGlobalHT=%d, fGlobalPW=%d,\n",
+            msg->nHTResolution, msg->bPAType, msg->fGlobalHT, msg->fGlobalPW);
+    printf("nMinPW=%d, nMaxPW=%d, nPWResolution=%d, nMaxPulserPower=%d,\n",
+            msg->nMinPW, msg->nMaxPW, msg->nPWResolution, msg->nMaxPulserPower);
+    printf("nMinGain=%d, nMaxGain=%d, nGainResolution=%d, nLowPass=%d,\n",
+            msg->nMinGain, msg->nMaxGain, msg->nGainResolution, msg->nLowPass);
     for (n = 0; n < 16; n++)
     {
         int last = msg->nLowPass < 0 ? n == 1
@@ -119,7 +122,41 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
     printf("fVideoTracking=%d, fScaleLPF=%d, fScaleHPF=%d, fScaleRFF=%d,\n",
             msg->fVideoTracking, msg->fScaleLPF, msg->fScaleHPF,
             msg->fScaleRFF);
-    printf("dwMinPRF=%u, dwMaxPRF=%u\n", msg->dwMinPRF, msg->dwMaxPRF);
+    printf("dwMinPRF=%u, dwMaxPRF=%u", msg->dwMinPRF, msg->dwMaxPRF);
+    /* Extended capabilities. */
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wScaleMaskLPF))
+    {
+        printf(",\nwScaleMaskLPF=0x%04x", msg->wScaleMaskLPF);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wScaleMaskHPF))
+    {
+        printf(", wScaleMaskHPF=0x%04x", msg->wScaleMaskHPF);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wScaleMaskRFF))
+    {
+        printf(", wScaleMaskRFF=0x%04x", msg->wScaleMaskRFF);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wMaxAperture))
+    {
+        printf(",\nwMaxAperture=%u", msg->wMaxAperture);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wMaxElements))
+    {
+        printf(", wMaxElements=%u", msg->wMaxElements);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wTxFocusGranularity))
+    {
+        printf(",\nwTxFocusGranularity=%u", msg->wTxFocusGranularity);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wRxFocusGranularity))
+    {
+        printf(", wRxFocusGranularity=%u", msg->wRxFocusGranularity);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wMaxFocusSteps))
+    {
+        printf(", wMaxFocusSteps=%u", msg->wMaxFocusSteps);
+    }
+    printf("\n");
 }
 
 static void dump_msg(const DBPOD_MSGHDR *hdr, int direction)
@@ -383,7 +420,15 @@ static int do_short_cmd(USHORT cmdcode)
 
 static int do_capabilities(void)
 {
-    return do_short_cmd(DBPOD_CMDCODE_GET_CAPABILITIES);
+    DBPOD_CMDBUF_GET_CAPABILITIES_EXT cmd;
+
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.hdr.dwLength = sizeof(cmd) - sizeof(ULONG);
+    cmd.hdr.dwSequence = cmdseq++;
+    cmd.hdr.wCmd = DBPOD_CMDCODE_GET_CAPABILITIES;
+    cmd.dwMaxCapLength =
+        sizeof(DBPOD_RSPBUF_GET_CAPABILITIES) - sizeof(DBPOD_MSGHDR);
+    return do_cmd(&cmd.hdr);
 }
 
 static int do_test(void)
