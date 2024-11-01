@@ -6,7 +6,7 @@
  *
  * db-Pod Communications Messages
  *
- * Copyright (c) 2008-2018 MEV Ltd., Bell Technology Ltd.
+ * Copyright (c) 2008-2024 MEV Ltd., Bell Technology Ltd.
  * All rights reserved.
  *
  * MODULE CONTENTS
@@ -62,6 +62,9 @@ extern "C" {
  *
  * 6. The 'FIELD_OFFSET()' macro (defined elsewhere) is similar to the C
  *    standard 'offsetof()' macro except that the result has type 'LONG'.
+ *
+ * 7. All padding fields in command and response messages are reserved for
+ *    future use and should be set to 0.
  */
 
 /* Pack on 4-byte boundaries */
@@ -88,172 +91,452 @@ extern "C" {
 /*
  * Current packet version.
  * Upper 16 bits is major version, lower 16 bits is minor version.
- * --------------------------------------------------------------------
+ *
+ * =====================================================================
  * Various incompatible changes occurred during development in packet
  * version 0x30000.
- * --------------------------------------------------------------------
- * Packet version 0x40000 has the 'nPort' member in
- * DBPOD_CMDBUF_MDU_CONFIG, replacing the unused 'pad1' member.
  *
- * It also replaces the ULONG 'dwLength' member in
- * DBPOD_CMDBUF_MDU_DATA with three new members USHORT 'wLength',
- * UCHAR 'nPort' and CHAR 'fContinuation'.
- * --------------------------------------------------------------------
- * Packet version 0x40001 has the 'nChanConfigs' member in
- * DBPOD_RSPBUF_GET_CAPABILITIES, replacing the unused 'pad2' member.
- * This holds the number of channel configurations supported by the
- * pod.
- * --------------------------------------------------------------------
- * Packet version 0x40002 changes DBPOD_RSPBUF_GET_CAPABILITIES as
- * follows, which should be backwards compatible:
+ * =====================================================================
+ * Packet version 0x40000
+ * ----------------------
  *
- *   'dwRFFScaleFreq' renamed to 'dwFiltScaleFreq'.  It now either
- *   applies to, or does not apply to, the LPF, HPF and RFF filter
- *   breakpoints, depending on the other members defined below.
+ * 1.  DBPOD_CMDBUF_MDU_CONFIG has the 'UCHAR nPort' field replacing
+ *     the unused 'CHAR pad1' field.
  *
- *   'fVideoTracking' has been split into 'fVideoTracking', 'fScaleLPF',
- *   'fScaleHPF', and 'fScaleRFF', all of type CHAR.  'fVideoTracking' was
- *   previously set to TRUE.
+ * 2.  DBPOD_CMDBUF_MDU_DATA has the 'USHORT wLength', 'UCHAR nPort'
+ *     and 'CHAR fContinuation' fields replacing the 'ULONG dwLength'
+ *     field.
  *
- *   If 'fScaleLPF' is FALSE, the low-pass filter breakpoint frequencies
- *   in 'anLPF[]' are absolute (except that a value of 0 means "broadband").
- *   If 'fScaleLPF' is TRUE, the values in 'anLPF[]' need to be multiplied
- *   by the digitization frequency ('nSampleFreq' in the channel configuration)
- *   and divided by the 'dwFiltScaleFreq'.
+ * =====================================================================
+ * Packet version 0x40001
+ * ----------------------
  *
- *   If 'fScaleHPF' is FALSE, the high-pass filter breakpoint frequencies
- *   in 'anHPF[]' are absolute.  If 'fScaleHPF' is TRUE, the values in
- *   'anHPF[]' need to be multiplied by the digitization frequency
- *   ('nSampleFreq' in the channel configuration) and divided by the
- *   'dwFiltScaleFreq'.
+ * 1. DBPOD_RSPBUF_GET_CAPABILITIES has the 'USHORT nChanConfigs' field
+ *    replacing the unused 'SHORT pad2' field.  This holds the number
+ *    of channel configurations supported by the pod.
  *
- *   If 'fScaleRFF' is FALSE, the post-rectification filter breakpoint
- *   frequencies in 'anRFF[]' are absolute.  If 'fScaleHPF' is TRUE, the
- *   values in 'anRFF[]' need to be multiplied by the digitization frequency
- *   ('nSampleFreq' in the channel configuration) and divided by the
- *   'dwFiltScaleFreq'.
+ * =====================================================================
+ * Packet version 0x40002
+ * ----------------------
  *
- * DBPOD_CMDBUF_CHAN_CONFIG now has the 'wCompatLevel' member replacing the
- * 'pad2' member:
+ * 1.  DBPOD_RSPBUF_GET_CAPABILITIES has the following changes which
+ *     should be backwards compatible:
  *
- *   If 'wCompatLevel' is 0 (old application), the 'nHPF', 'nLPF', and 'nRFF'
- *   values will be matched against supported values listed in the capabilities
- *   as-is, with no scaling, regardless of the 'fScaleHPF', 'fScaleLPF' and
- *   'fScaleRFF' flags in the capabilities.  This may result in the filter
- *   cut-off frequencies that are actually applied being different from the
- *   specified frequencies.
+ *     (a) The 'dwRFFScaleFreq' field has been renamed to
+ *         'dwFiltScaleFreq'.  It now either applies to, or does not
+ *         apply to, the LPF, HPF and RFF filter breakpoints, depending
+ *         on the other fields defined below.
  *
- *   If 'wCompatLevel' is 1 (new application), the 'nHPF', 'nLPF', and 'nRFF',
- *   values will be matched against unscaled or scaled (depending on the
- *   'fScaleHPF', 'fScaleLPF', and 'fScaleRFF' settings in the capabilities)
- *   versions of the supported values listed in the capabilities.
- * --------------------------------------------------------------------
- * Packet version 0x40003 has changes for setting a hardware-specific
- * channel configuration value, e.g. for setting input impedance and
- * pre-amplification.
+ *     (b) The 'LONG fVideoTracking' field has been split into
+ *         'CHAR fVideoTracking', 'CHAR fScaleLPF', 'CHAR fScaleHPF',
+ *         and 'CHAR fScaleRFF' fields.  'fVideoTracking' was previously
+ *         set to TRUE.
  *
- * DBPOD_CMDBUF_CHAN_CONFIG now has the 'wSpecial' member replacing the
- * 'pad3' member.
+ *         If 'fScaleLPF' is FALSE, the low-pass filter breakpoint
+ *         frequencies in 'anLPF[]' are absolute (except that a value
+ *         of 0 means "broadband").  If 'fScaleLPF' is TRUE, the values
+ *         in 'anLPF[]' need to be multiplied by the digitization
+ *         frequency ('nSampleFreq' in the channel configuration) and
+ *         divided by the 'dwFiltScaleFreq' value.
  *
- * DBPOD_RSPBUF_GET_CAPABILITIES now has the 'bHardType' and 'bAFEType'
- * members replacing the 'pad3' member:
+ *         If 'fScaleHPF' is FALSE, the high-pass filter breakpoint
+ *         frequencies in 'anHPF[]' are absolute.  If 'fScaleHPF' is
+ *         TRUE, the values in 'anHPF[]' need to be multiplied by the
+ *         digitization frequency ('nSampleFreq' in the channel
+ *         configuration) and divided by the 'dwFiltScaleFreq' value.
  *
- *   bHardType values:
+ *         If 'fScaleRFF' is FALSE, the post-rectification filter
+ *         breakpoint frequencies in 'anRFF[]' are absolute.  If
+ *         'fScaleHPF' is TRUE, the values in 'anRFF[]' need to be
+ *         multiplied by the digitization frequency ('nSampleFreq' in
+ *         the channel configuration) and divided by the
+ *         'dwFiltScaleFreq' value.
  *
- *     0 (DBPOD_HARDTYPE_ORIG_ETH) = Classic Ethernet Pod (Nios II).
- *     1 (DBPOD_HARDTYPE_FAST_ETH) = "Fast" Ethernet Pod (ARM).
- *     2 (DBPOD_HARDTYPE_MINI_ETH) = Ethernet Mini Pod (ARM).
- *     3 (DBPOD_HARDTYPE_MINI_USB) = USB3.0 Mini Pod (FTDI).
+ *         NOTE: See changes in packet version 0x50000 that affect how
+ *         'dwFiltScaleFreq' is used.
  *
- *   bAFEType values:
+ * 2.  DBPOD_CMDBUF_CHAN_CONFIG has the 'USHORT wCompatLevel' field
+ *     replacing the 'SHORT pad2' field.
  *
- *     0 (DBPOD_AFETYPE_ORIGINAL)  = Classic Ethernet Pod or Fast Pod.
- *     1 (DBPOD_AFETYPE_MAX2077)   = MAX2077 - Mini Pod (Ethernet or USB).
- * --------------------------------------------------------------------
- * Packet version 0x40004 has changes to the encoder configuration command for
- * configuring external resets, and supports a "maximum" mode for the average
- * gate, a "sorted peaks" mode for the peaks gate, and a new scan type for use
- * with "maximum" mode.  There is also an option for including readings from
- * all four quadrature encoders in the UT data, replacing some of the peaks in
- * the message.
+ *     If 'wCompatLevel' is 0 (old application), the 'nHPF', 'nLPF',
+ *     and 'nRFF' values will be matched against supported values
+ *     listed in the capabilities as-is, with no scaling, regardless of
+ *     the 'fScaleHPF', 'fScaleLPF' and 'fScaleRFF' flags in the
+ *     capabilities.  This may result in the filter cut-off frequencies
+ *     that are actually applied being different from the specified
+ *     frequencies.
  *
- * DBPOD_CMDBUF_ENCODER_CONFIG has replaced the ULONG 'dwDifferential' and
- * 'dwInvertSense' members with USHORT 'wDifferential', 'wResetEnable',
- * 'wInvertSense' and 'wResetSource' members, and is the same size as before.
+ *     If 'wCompatLevel' is 1 (new application), the 'nHPF', 'nLPF',
+ *     and 'nRFF' values will be matched against unscaled or scaled
+ *     (depending on the 'fScaleHPF', 'fScaleLPF', and 'fScaleRFF'
+ *     settings in the capabilities) versions of the supported values
+ *     listed in the capabilities.
  *
- * For channel configuration commands, the "averaging" gate supports a new
- * "maximum" mode.  This produces the extreme values (those with largest
- * absolute value) at each sample position from a set of passes instead of the
- * usual "mean" value.  The "maximum" mode is enabled by setting the 'nControl'
- * member of the averaging gate to DBPOD_AVERAGING_MAX.
+ *     NOTE: See changes in packet version 0x50000 for additional
+ *     'wCompatLevel' value.
  *
- *   Averaging gate nControl values:
+ * =====================================================================
+ * Packet version 0x40003
+ * ----------------------
  *
- *     0 (DBPOD_AVERAGING_MEAN) - produces the mean values
- *     1 (DBPOD_AVERAGING_MAX)  - (new) produces the maximum (extreme) values
+ * 1.  DBPOD_CMDBUF_CHAN_CONFIG has the 'USHORT wSpecial' field
+ *     replacing the 'SHORT pad3' field.  This is for setting a
+ *     hardware-specific configuration value, e.g. for setting input
+ *     impedance and pre-amplification.
  *
- * "Maximum" mode works for FPGA version 7 or later (as reported by the
- * 'wHardVersion' member of the 'Get Capabilities' response).
+ * 2.  DBPOD_RSPBUF_GET_CAPABILITIES has the 'UCHAR bHardType' and
+ *     'UCHAR bAFEType' fields replacing the 'SHORT pad3' field:
  *
- * Also for channel configuration commands, the "peaks" gate supports a new
- * "sorted peaks" mode.  This sorts the peaks in descending order of size.
- * The "sorted peaks" mode is enabled by setting the peak type in bits 15 to 8
- * of the 'nControl' member of the peaks gate to DBPOD_PEAKTYPE_SORTED.  Note
- * that bits 7 to 0 of the 'nControl' member sets the number of peaks required,
- * but this is currently ignored.
+ *     bHardType values:
  *
- *   Peak gate nControl values:
+ *       0 (DBPOD_HARDTYPE_ORIG_ETH) = Classic Ethernet Pod (Nios II).
+ *       1 (DBPOD_HARDTYPE_FAST_ETH) = "Fast" Ethernet Pod (ARM).
+ *       2 (DBPOD_HARDTYPE_MINI_ETH) = Ethernet Mini Pod (ARM).
+ *       3 (DBPOD_HARDTYPE_MINI_USB) = USB3.0 Mini Pod (FTDI).
  *
- *     DBPOD_PEAKS_NCONTROL(num, type)
+ *     bAFEType values:
  *
- *       num  - number of peaks (currently ignored)
- *       type - peak type
+ *       0 (DBPOD_AFETYPE_ORIGINAL)  = Classic Ethernet Pod or Fast Pod.
+ *       1 (DBPOD_AFETYPE_MAX2077)   = MAX2077 - MiniPod (Ether or USB).
  *
- *       Peak type values (bits 15 to 8 of nControl):
+ * =====================================================================
+ * Packet version 0x40004
+ * ----------------------
  *
- *         0 (DBPOD_PEAKTYPE_FIRST_N_POS) - first n positive peaks
- *         1 (DBPOD_PEAKTYPE_FIRST_N)     - first n bipolar peaks
- *         2 (DBPOD_PEAKTYPE_SORTED)      - (new) sorted peaks
+ * Packet version 0x40004 has changes to the encoder configuration
+ * command for configuring external resets, and supports a "maximum"
+ * mode for the average gate, a "sorted peaks" mode for the peaks gate,
+ * and a new scan type for use with "maximum" mode.  There is also an
+ * option for including readings from all four quadrature encoders in
+ * the UT data, replacing some of the peaks in the message.
  *
- *       (Note that current hardware always produces bipolar peaks and the
- *       "number of peaks" value is ignored.)
+ * 1.  DBPOD_CMDBUF_ENCODER_CONFIG has the 'USHORT wDifferential',
+ *     'USHORT wResetEnable', 'USHORT wInvertSense', and 'USHORT
+ *     wResetSource' fields replacing the 'ULONG dwDifferential' and
+ *     'ULONG dwInvertSense' fields, adn is the same size as before.
  *
- * "Sorted peaks" mode works for FPGA version 7 or later (as reported by the
- * 'wHardVersion' member of the 'Get Capabilities' response).
+ * 2.  For channel configuration commands, the "averaging" gate supports
+ *     a new "maximum" mode.  This produces the extreme values (those
+ *     with largest absolute value) at each sample position from a set
+ *     of passes instead of the usual "mean" value.  The "maximum" mode
+ *     is enabled by setting the 'nControl' field of the averaging gate
+ *     to DBPOD_AVERAGING_MAX.
  *
- * The 'ScanType' member of DBPOD_CMDBUF_SCAN_CONFIG supports an additional
- * value, DBPOD_SCAN_FREEPOSITION.  This is like free-run mode, but changes
- * in scan position may have additional effects.  This is for use with the
- * new "maximum" UT mode, where it results in production of maximised UT
- * data from all sweeps since the previous change in scan position.
+ *     Averaging gate nControl values:
  *
- *   Scan configuration 'ScanType' values:
+ *       0 (DBPOD_AVERAGING_MEAN) - produces the mean values
+ *       1 (DBPOD_AVERAGING_MAX)  - (new) produces the maximum (extreme)
+ *                                  values
  *
- *     0 (DBPOD_SCAN_FREERUN)        - free-run mode
- *     1 (DBPOD_SCAN_TIEDTOPOSITION) - tied-to-position mode
- *     2 (DBPOD_SCAN_FREEPOSITION)   - (new) "free position" mode
+ *     "Maximum" mode works for Ethernet MiniPod FPGA version 7 or later
+ *     (as reported by the 'wHardVersion' fields of the 'Get
+ *     Capabilities' response) and for all(?) versions of the USB
+ *     MiniPod.
  *
- * "Free position" mode works for FPGA version 7 or later (as reported by
- * the 'wHardVersion' member of the 'Get Capabilities' response).
+ * 3.  Also for channel configuration commands, the "peaks" gate
+ *     supports a new "sorted peaks" mode.  This sorts the peaks in
+ *     descending order of size.  The "sorted peaks" mode is enabled by
+ *     setting the peak type in bits 15 to 8 of the 'nControl' field of
+ *     the peaks gate to DBPOD_PEAKTYPE_SORTED.  Note that bits 7 to 0
+ *     of the 'nControl' field sets the number of peaks required, but
+ *     this is currently ignored.
  *
- * The 'dwFlags' member of DBPOD_CMDBUF_START_UT has an additional bit-mask
- * flag value DBPOD_START_UT_EXTRA_ENCS.  OR'ing DBPOD_START_UT_EXTRA into
- * dwFlags results in encoder readings beyond encoders 0 and 1 appearing at
- * the end of the UT data in place of some of the peaks.
+ *     Peak gate nControl values:
  *
- *   dwFlags bit-mask values:
+ *       DBPOD_PEAKS_NCONTROL(num, type)
  *
- *     0x0001 (DBPOD_START_UT_DESPARKLE)  - turn on desparkler
- *     0x0002 (DBPOD_START_UT_COMPRESS)   - turn on compression
- *     0x0004 (DBPOD_START_UT_EXTRA_ENCS) - (new) extra encoders in UT
+ *         num  - number of peaks (currently ignored)
+ *         type - peak type
  *
- *   (Note: the "compress" option is reserved for future use.  The "desparkle"
- *   option is a legacy option which may have no effect on current hardware.)
+ *         Peak type values (bits 15 to 8 of nControl):
  *
- * This works for FPGA version 7 or later (as reported by the 'wHardVersion'
- * member of the 'Get Capabilities' response).
+ *           0 (DBPOD_PEAKTYPE_FIRST_N_POS) - first n positive peaks
+ *           1 (DBPOD_PEAKTYPE_FIRST_N)     - first n bipolar peaks
+ *           2 (DBPOD_PEAKTYPE_SORTED)      - (new) sorted peaks
+ *
+ *         (Note that current hardware always produces bipolar peaks
+ *         and the "number of peaks" value is ignored.)
+ *
+ *     "Sorted peaks" mode works for Ethernet MiniPod FPGA version 7 or
+ *     later (as reported by the 'wHardVersion' field of the 'Get
+ *     Capabilities' response) and for all(?) versions of the USB
+ *     MiniPod.
+ *
+ * 4.  The 'ScanType' field of DBPOD_CMDBUF_SCAN_CONFIG supports an
+ *     additional value, DBPOD_SCAN_FREEPOSITION.  This is like free-run
+ *     mode, but changes in scan position may have additional effects.
+ *     This is for use with the new "maximum" UT mode, where it results
+ *     in production of maximised UT data from all sweeps since the
+ *     previous change in scan position.
+ *
+ *     Scan configuration 'ScanType' values:
+ *
+ *       0 (DBPOD_SCAN_FREERUN)        - free-run mode
+ *       1 (DBPOD_SCAN_TIEDTOPOSITION) - tied-to-position mode
+ *       2 (DBPOD_SCAN_FREEPOSITION)   - (new) "free position" mode
+ *
+ *     "Free position" mode works for Ethernet MiniPod FPGA version 7 or
+ *     later (as reported by the 'wHardVersion' field of the 'Get
+ *     Capabilities' response) and for all(?) versions of the USB
+ *     MiniPod.
+ *
+ * 5.  The 'dwFlags' field of DBPOD_CMDBUF_START_UT has an additional
+ *     bit-mask flag value DBPOD_START_UT_EXTRA_ENCS.  OR-ing
+ *     DBPOD_START_UT_EXTRA into 'dwFlags' has the effect of making
+ *     encoder readings beyond encoders 0 and 1 appearing at the end of
+ *     the UT data in place of some of the peaks.
+ *
+ *     'dwFlags' bit-mask values:
+ *
+ *       0x0001 (DBPOD_START_UT_DESPARKLE)  - turn on desparkler
+ *       0x0002 (DBPOD_START_UT_COMPRESS)   - turn on compression
+ *       0x0004 (DBPOD_START_UT_EXTRA_ENCS) - (new) extra encoders in UT
+ *
+ *     (Note: the "compress" option is reserved for future use.  The
+ *     "desparkle" option is a legacy option which may have no effect on
+ *     current hardware.)
+ *
+ *     This works for Ethernet MiniPod FPGA version 7 or later (as
+ *     reported by the 'wHardVersion' field of the 'Get Capabilities'
+ *     response) and for all(?) versions of the USB MiniPod.
+ *
+ * =====================================================================
+ * Packet version 0x50000
+ * ----------------------
+ *
+ * 1.  DBPOD_RSPBUF_GET_CAPABILITIES has the 'UCHAR bPAType' field
+ *     replacing the first half of the 'SHORT pad4' field, which is now
+ *     'UCHAR pad4'. There is also an additional value 4 for the
+ *     'bHardType' field, and additional value 2 for the 'bAFEType
+ *     field:
+ *
+ *     bHardType values:
+ *
+ *       0 (DBPOD_HARDTYPE_ORIG_ETH)   = Classic Ethernet Pod (Nios II).
+ *       1 (DBPOD_HARDTYPE_FAST_ETH)   = "Fast" Ethernet Pod (ARM).
+ *       2 (DBPOD_HARDTYPE_MINI_ETH)   = Ethernet Mini Pod (ARM).
+ *       3 (DBPOD_HARDTYPE_MINI_USB)   = USB3.0 Mini Pod (FTDI).
+ *       4 (DBPOD_HARDTYPE_MINIPA_ETH) = Ethernet Mini Phased Array
+ *                                       (ARM).
+ *
+ *     bAFEType values:
+ *
+ *       0 (DBPOD_AFETYPE_ORIGINAL)  = Classic Ethernet Pod or Fast Pod.
+ *       1 (DBPOD_AFETYPE_MAX2077)   = MAX2077 - Mini Pod (Ethernet or
+ *                                     USB).
+ *       2 (DBPOD_AFETYPE_VCA5807)   = VCA5807 - Mini Phased Array.
+ *
+ *     bPAType values:
+ *
+ *       0 (DBPOD_PATYPE_NONE)     = No phased array.
+ *       1 (DBPOD_PATYPE_MINI_PBF) = MiniPod Phased Array partial beam
+ *                                   former.
+ *
+ * 2.  There is an extended version of the 'Get Capabilities' command
+ *     using the same command code, but including a 'ULONG
+ *     dwMaxCapLength' field.  If this field is included in the 'Get
+ *     Capabilities' command, it specifies the maximum length of the
+ *     'Get Capabilities' response, not including the message header
+ *     (i.e., it specifies the maximum length from the start of the
+ *     'szHwName' field onwards in DBPOD_RSPBUF_GET_CAPABILITIES).
+ *     However, 'dwMaxCapLength' values less than 512 will be increased
+ *     to 512 for backwards compatibility.
+ *
+ *     All capability fields from 'szHwName' to 'dwMaxPRF' inclusive
+ *     (corresponding to a 'dwMaxCapLength' value of 512) will be
+ *     included in the 'Get Capabilities' response regardless of the
+ *     presence of the 'dwMaxCapLength' field or its value.  Higher
+ *     values of the 'dwMaxCapLength' field allow additional capability
+ *     fields to be included in the response.
+ *
+ * 3.  The extended 'Get Capabilities' response includes the following
+ *     additional fields if the 'dwMaxCapLength' value in the command
+ *     is high enough:
+ *
+ *     (a) 'USHORT wScaleMaskLPF' is a bit-mask indicating which of the
+ *         low-pass filter breakpoint frequencies in 'anLPF[]' are
+ *         scaled and which are absolute.  This is more informative
+ *         than the 'fScaleLPF' field.  A '1' bit at a bit-position in
+ *         the mask indicates that the entry at the corresponding index
+ *         in 'anLPF[]' needs to be multiplied by the digitization
+ *         frequency ('nSampleFreq' in the channel configuration) and
+ *         divided by the 'dwFiltScaleFreq' value.  A '0' bit at a
+ *         bit-position in the mask indicates that the entry at the
+ *         corresponding index in 'anLPF[]' is absolute (except that a
+ *         value of 0 means "broadband").  The value is only taken into
+ *         account during channel configuration if the 'wCompatLevel'
+ *         value in the channel configuration is at least 2.
+ *
+ *     (b) 'USHORT wScaleMaskHPF' is a bit-mask indicating which of the
+ *         high-pass filter breakpoint frequencies in 'anHPF[]' are
+ *         scaled and which are absolute.  This is more informative
+ *         than the 'fScaleHPF' field.  A '1' bit at a bit-position in
+ *         the mask indicates that the entry at the corresponding index
+ *         in 'anHPF[]' needs to be multiplied by the digitization
+ *         frequency ('nSampleFreq' in the channel configuration) and
+ *         divided by the 'dwFiltScaleFreq' value.  A '0' bit at a
+ *         bit-position in the mask indicates that the entry at the
+ *         corresponding index in 'anHPF[]' is absolute.  The value is
+ *         only taken into account during channel configuration if the
+ *         'wCompatLevel' value in the channel configuration is at least
+ *         2.
+ *
+ *     (c) 'USHORT wScaleMaskRFF' is a bit-mask indicating which of the
+ *         post-rectification filter breakpoint frequencies in 'anRFF[]'
+ *         are scaled and which are absolute.  This is more informative
+ *         than the 'fScaleRFF' field.  A '1' bit at a bit-position in
+ *         the mask indicates that the entry at the corresponding index
+ *         in 'anRFF[]' needs to be multiplied by the digitization
+ *         frequency ('nSampleFreq' in the channel configuration) and
+ *         divided by the 'dwFiltScaleFreq' value.  A '0' bit at a
+ *         bit-position in the mask indicates that the entry at the
+ *         corresponding index in 'anRFF[]' is absolute.  The value is
+ *         only taken into account during channel configuration if the
+ *         'wCompatLevel' value in the channel configuration is at least
+ *         2.
+ *
+ *     (d) 'USHORT wMaxAperture' is the maximum number of parallel ADCs
+ *         for phased array.
+ *
+ *     (e) 'USHORT wMaxElements' is the maximum number of phased array
+ *         elements.
+ *
+ *     (f) 'USHORT wTxFocusGranularity' is the TX focus delay
+ *         granularity (TX focus step size) in nanoseconds for phased
+ *         array.
+ *
+ *     (g) 'USHORT wRxFocusGranularity' is the RX focus delay
+ *         granularity (RX focus step size) in nanoseconds for phased
+ *         array.
+ *
+ *     (h) 'USHORT wMaxFocusSteps' is the maximum number of RX/TX focus
+ *         delay steps for phased array.  So the maximum TX focus delay
+ *         in nanoseconds is 'wMaxFocusSteps * wTxFocusGranularity',
+ *         and the maximum RX focus delay in nanoseconds is
+ *         'wMaxFocusSteps * wRxFocusGranularity'.
+ *
+ * 4.  The interpretation of the 'dwFiltScaleFreq' field value (in
+ *     DBPOD_RSPBUF_GET_CAPABILITIES) and its effect on the scaling of
+ *     the filter frequencies has changed when the value of
+ *     'dwFiltScaleFreq' is less than the maximum digitization rate in
+ *     'adwDigFreq[0]'.  Currently, this only affects Mini Phased Array
+ *     devices because the MiniPod and FastPod have 'dwFiltScaleFreq'
+ *     equal to 'adwDigFreq[0]'.  However, the interpretation of the
+ *     new 'wScaleMaskLPF', 'wScaleMaskHPF', and 'wScaleMaskRFF'
+ *     capabilities also affects the MiniPod devices.
+ *
+ *     The scaling of filter frequencies will be disabled for channels
+ *     that have digitization rate ('nSampleFreq' in the channel
+ *     configuration) set higher than (or equal to) the
+ *     'dwFiltScaleFreq' value.
+ *
+ *     For backwards compatibility, when checking the configured filter
+ *     frequencies in the channel configuration command, the pod
+ *     software will only apply the "'nSampleFreq' higher than
+ *     'dwFiltScaleFreq'" rule, and will only use the 'wScaleMaskHPF',
+ *     'wScaleMaskLPF', and 'wScaleMaskRFF' bit-mask values when in the
+ *     capabilities when the 'wCompatLevel' value  in the channel
+ *     configuration is at least 2.
+ *
+ *     If 'wCompatLevel' is 0 (old application), the 'nHPF', 'nLPF',
+ *     and 'nRFF' values will be matched against supported values
+ *     listed in the capabilities as-is, with no scaling.  The
+ *     'fScaleHPF', 'fScaleLPF', and 'fScaleRFF' flags, and the
+ *     'wScaleMaskHPF', 'wScaleMaskLPF', and 'wScaleMaskRFF' bit-mask
+ *     values are ignored.  This may result in the filter cut-off
+ *     frequencies that are actually applied being different from the
+ *     specified frequencies.
+ *
+ *     If 'wCompatLevel' is 1 (less old application), the 'nHPF',
+ *     'nLPF', and 'nRFF' values will be matched against unscaled or
+ *     scaled versions of the supported values listed in the
+ *     capabilities.  It is assumed that the client is aware of the
+ *     'fScaleHPF', 'fScaleLPF', and 'fScaleRFF' flags in the
+ *     capabilities, but is unaware of the 'wScaleMaskHPF',
+ *     'wScaleMaskLPF', and 'wScaleMaskRFF' bit-mask values in the
+ *     capabiilities, and is also unaware that scaling should only be
+ *     applied for digitization rates higher than the 'dwFiltScaleFreq'
+ *     value in the capabilities.  It is assumed that the client has
+ *     set the 'nHPF' value in the channel configuration message to
+ *     match a scaled 'anHPF[]' entry if the 'fScaleHPF' value in the
+ *     capabilities is TRUE, regardless of the 'wScaleMaskHPF' bit-mask
+ *     value in the capabilities, and regardless of whether the
+ *     digitization rate ('nSampleFreq' in the channel configuration) is
+ *     lower or higher than the 'dwFiltScaleFreq' value in the
+ *     capabilities.  Similarly, it is assumed that the client set the
+ *     'nLPF' value in the channel configuration to match a scaled
+ *     'anLPF[]' entry if the 'fScaleLPF' value in the capabilities is
+ *     TRUE, regardless of the 'wScaleMaskLPF' value and the
+ *     digitization rate, and it is assumed that the client has set the
+ *     'nRFF' value in the channel configuration to match a scaled
+ *     'anRFF[]' entry if the 'fScaleRFF' value in the capabilities is
+ *     TRUE, regardless of the 'wScaleMaskRFF' value and the
+ *     digitization rate).  This may result in the filter cut-off
+ *     frequencies that are actually applied being different from the
+ *     specified frequencies when the digitization rate is higher than
+ *     the 'dwFiltScaleFreq' value or when only some of the supported
+ *     filter cut-off frequencies are actually scaled.
+ *
+ *     If 'wCompatLevel' is 2 (new application), the 'nHPF', 'nLPF',
+ *     and 'nRFF' values will be matched against unscaled or scaled
+ *     versions of the supported values listed in the capabilities.
+ *     It is assumed that the client is aware of the 'wScaleMaskHPF',
+ *     'wScaleMaskLPF', and 'wScaleMaskRFF' bit-mask capabilities, and
+ *     is aware of the rule that scaling should be disabled when the
+ *     digitization rate ('nSampleFreq' in the channel configuration)
+ *     is higher than the 'dwFiltScaleFreq' value in the capabilities.
+ *     It is assumed that the client has set the 'nHPF' value in the
+ *     channel configuration message to match a scaled 'anHPF[]' entry
+ *     if and only if the corresponding bit of the 'wScaleMaskHPF'
+ *     value in the capabilities is '1' and the digitization rate
+ *     ('nSampleFreq' in the channel configuration) is lower than (or
+ *     equal to the 'dwFiltScaleFreq' value in the capabilities.
+ *     Similarly, it is assumed that the client set the 'nLPF' value in
+ *     the channel configuration to match a scaled 'anLPF[]' entry if
+ *     and only if the corresponding bit of the 'wScaleMaskLPF' value in
+ *     the capabilities is '1' and the digitization rate is lower than
+ *     (or equal to) the 'dwFiltScaleFreq' value, and has set the 'nRFF'
+ *     value in the channel configuration to match a scaled 'anRFF[]'
+ *     entry if and only if the corresponding bit of the 'wScaleMaskRFF'
+ *     value in the capabilities is '1' and the digitization rate is
+ *     lower than (or equal to) the 'dwFiltScaleFreq' value.
+ *
+ * 5.  Added 'Phased Array Channel Element/Delay' command and response
+ *     (DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY and
+ *     DBPOD_RSPBUF_PA_CHAN_ELEM_DELAY).  This command configures
+ *     various parts of the phased array as determined by the value of
+ *     the 'bTypeMask' field, and may be used several times to
+ *     configure different parts.
+ *
+ *     Some parts are specific to a single sequence table entry,
+ *     specified by the 'nIndex' field, and some parts are global.  The
+ *     'nIndex' field can be set to -1 to apply sequence table entry
+ *     specific parts to all sequence table entries.  The 'nIndex' field
+ *     value is ignored when configuring global parts.
+ *
+ *     If the values for a particular type are identical (e.g. identical
+ *     lists of TX and RX element numbers for a sequence table entry)
+ *     then they can be configured in a single message by setting the
+ *     'bTypeMask' field to a combination of bits.
+ *
+ *     The sequence table entry specific parts are the list of TX
+ *     element numbers, the list of RX element numbers, the list of
+ *     TX element delays, and the list of RX element delays.  The
+ *     pod software will impose restrictions on the sets of element
+ *     numbers that can be included in the list due to hardware
+ *     limitations (e.g. no gaps in the element numbers in the list).
+ *
+ *     The global parts are a list containing the balancing gain for
+ *     each physical element, and a list containing the balancing delay
+ *     for each physical element.
+ *
+ * 6.  The 'nTx' and 'nRx' fields in the 'Channel Configuration' command
+ *     structure (DBPOD_CMDBUF_CHAN_CONFIG) can be set to the special
+ *     value -2 to specify that the sequence table entry will use the
+ *     phased array elements.
+ *
  */
-#define DBPOD_CURRENT_PACKET_VERSION    0x40004
+#define DBPOD_CURRENT_PACKET_VERSION    0x50000
 
 /*
  * Message Header.
@@ -294,6 +577,18 @@ typedef struct TAG_DBPOD_CMDBUF_GET_CAPABILITIES
 {
     DBPOD_MSGHDR hdr;               /* Message header. */
 } DBPOD_CMDBUF_GET_CAPABILITIES;
+
+/*
+ * Extended 'Get Capabilities' command buffer, including a 'dwMaxCapLength'
+ * field for setting the maximum length of the capabilities, not including
+ * the message header.
+ */
+typedef struct TAG_DBPOD_CMDBUF_GET_CAPABILITIES_EXT
+{
+    DBPOD_MSGHDR hdr;               /* Message header. */
+    ULONG dwMaxCapLength;           /* Maximum length of capabilities data,
+                                       not including the message header. */
+} DBPOD_CMDBUF_GET_CAPABILITIES_EXT;
 
 /* Sample format for capabilities. */
 typedef struct TAG_DBPOD_SAMPLE_FORMAT
@@ -342,7 +637,8 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     SHORT       nMinHT;             /* Minimum HT voltage in volts. */
     SHORT       nMaxHT;             /* Maximum HT voltage in volts. */
     SHORT       nHTResolution;      /* HT voltage resolution in volts. */
-    SHORT       pad4;               /* (padding) */
+    UCHAR       bPAType;            /* Phased array type. */
+    UCHAR       pad4;               /* (padding = 0) */
     LONG        fGlobalHT;          /* Flag: HT voltage must be configured alike for all channels. */
     LONG        fGlobalPW;          /* Flag: pulse width must be configured alike for all channels. */
     SHORT       nMinPW;             /* Minimum pulse width in nanoseconds. */
@@ -356,11 +652,11 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     LONG        anLPF[16];          /* Low-pass filter breakpoints, or continuous range from anLPF[0] to anLPF[1], in Hz. */
     LONG        fGlobalLPF;         /* Flag: low-pass filters must be configured alike for all channels. */
     SHORT       nHighPass;          /* Number of high-pass filter breakpoints. A -1 indicates a continuous range. */
-    SHORT       pad5;               /* (padding) */
+    SHORT       pad5;               /* (padding = 0) */
     LONG        anHPF[16];          /* High-pass filter breakpoints, or continuous range from anHPF[0] to anHPF[1], in Hz. */
     LONG        fGlobalHPF;         /* Flag: high-pass filters must be configured alike for all channels. */
     SHORT       nRectFilters;       /* Number of post-rectification filter breakpoints. A -1 indicates a continuous range. */
-    SHORT       pad6;               /* (padding) */
+    SHORT       pad6;               /* (padding = 0) */
     LONG        anRFF[16];          /* Post-rectification filter breakpoints, or continuous range from anRFF[0] to anRFF[1], in Hz. */
     ULONG       dwFiltScaleFreq;    /* Filter scale frequency.
                                        Used in conjunction with fScaleLPF,
@@ -372,7 +668,8 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
                                        digitization frequency). */
     LONG        fGlobalRFF;         /* Flag: post-rectification filters must be configured alike for all channels. */
     SHORT       nMinTrigPulse;      /* Minimum pulse width of the external trigger input in microseconds. */
-    SHORT       nChannels;          /* Number of physical transducer channels. */
+    SHORT       nChannels;          /* Number of conventional physical
+                                       transducer channels (not phased array). */
     SHORT       nDACs;              /* Maximum number of DAC curves. */
     SHORT       nGates;             /* Maximum number of gates per channel. */
     SHORT       nEncoders;          /* Number of encoder axes. */
@@ -401,6 +698,62 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
                                        dwFiltScaleFreq.  */
     ULONG       dwMinPRF;           /* Minimum PRF in microseconds. */
     ULONG       dwMaxPRF;           /* Maximum PRF in microseconds. */
+    /*
+     * The non-extended 'Get Capabilities' response ends at this point.
+     * Remaining fields will only be sent if the extended version of
+     * the 'Get Capabilities' command is used with a large enough
+     * 'dwMaxCapLength' value.  The 'dwMaxCapLength' value specifies the
+     * maximum length of the 'Get Capabilities' response not including the
+     * message header (i.e. starting from the 'szHwName' field onwards).
+     *
+     * The length from the start of the 'szHwName' field up to this point
+     * is 512 bytes.
+     */
+    USHORT      wScaleMaskLPF;      /* Low-pass filter breakpoint scaling
+                                       bit-mask.  Indicates which entries in
+                                       anLPF[] are scaled and which ones are
+                                       absolute.  A '1' in a bit position
+                                       indicates that the entry at the
+                                       corresponding index in anLPF[] is scaled
+                                       and a '0' in a bit position indicates
+                                       that the entry at the corresponding
+                                       index in anLPF[] is absolute.  This
+                                       is more informative than fScaleLPF.  */
+    USHORT      wScaleMaskHPF;      /* High-pass filter breakpoint scaling
+                                       bit-mask.  Indicates which entries in
+                                       anHPF[] are scaled and which ones are
+                                       absolute.  A '1' in a bit position
+                                       indicates that the entry at the
+                                       corresponding index in anHPF[] is scaled
+                                       and a '0' in a bit position indicates
+                                       that the entry at the corresponding
+                                       index in anHPF[] is absolute.  This
+                                       is more informative than fScaleHPF.  */
+    USHORT      wScaleMaskRFF;      /* Post-rectification filter breakpoint
+                                       scaling bit-mask.  Indicates which
+                                       entries in anRFF[] are scaled and which
+                                       ones are absolute.  A '1' in a bit
+                                       position indicates that the entry at the
+                                       corresponding index in anRFF[] is scaled
+                                       and a '0' in a bit position indicates
+                                       that the entry at the corresponding
+                                       index in anRFF[] is absolute.  This
+                                       is more informative than fScaleRFF.  */
+    USHORT      wMaxAperture;       /* Phased array maximum aperture size
+                                       (maximum number of parallel ADCs.) */
+    USHORT      wMaxElements;       /* Phased array max number of elements. */
+    USHORT      wTxFocusGranularity;/* TX focus (delays) granularity in ns. */
+    USHORT      wRxFocusGranularity;/* RX focus (delays) granularity in ns. */
+    USHORT      wMaxFocusSteps;     /* Maximum number of TX/RX delay steps
+                                       that the hardware supports.  So the
+                                       maximum RX delay in nanoseconds is
+                                       wMaxFocusSteps * wRxFocusGranularity,
+                                       and the maximum TX delay in nanoseconds
+                                       is wMaxFocusSteps * wTxFocusGranularity. */
+    /*
+     * The length from the start of the 'szHwName' field up to this point
+     * is 528 bytes.
+     */
 } DBPOD_RSPBUF_GET_CAPABILITIES;
 
 /* Hardware type codes. */
@@ -408,10 +761,16 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
 #define DBPOD_HARDTYPE_FAST_ETH     1   /* Fast Ethernet Pod (ARM). */
 #define DBPOD_HARDTYPE_MINI_ETH     2   /* Ethernet Mini Pod (ARM). */
 #define DBPOD_HARDTYPE_MINI_USB     3   /* USB3.0 Mini Pod (FTDI). */
+#define DBPOD_HARDTYPE_MINIPA_ETH   4   /* Ethernet Mini Phased Array (ARM). */
 
 /* Hardware AFE type codes. */
 #define DBPOD_AFETYPE_ORIGINAL      0   /* Classic Ethernet Pod or Fast Pod. */
 #define DBPOD_AFETYPE_MAX2077       1   /* MAX2077 - Mini Pod (Ether or USB). */
+#define DBPOD_AFETYPE_VCA5807       2   /* VCA5807 - Mini Phased Array. */
+
+/* Hardware phased array type codes. */
+#define DBPOD_PATYPE_NONE           0   /* No phased array. */
+#define DBPOD_PATYPE_MINI_PBF       1   /* Mini PA partial beam former. */
 
 /********************************************
  *
@@ -593,7 +952,7 @@ typedef struct TAG_DBPOD_CMDBUF_SET_FLASH_PARAMS
     SHORT       GainRef3;           /* Gain Stage 3 reference tweak */
     SHORT       GainMult;           /* DAC gain correction multiplier * 1000 */
     SHORT       GainOffset;         /* DAC gain correction offset in db * 100 */
-    SHORT       pad1;               /* (padding) */
+    SHORT       pad1;               /* (padding = 0) */
 } DBPOD_CMDBUF_SET_FLASH_PARAMS;
 
 /* 'Set Flash Parameters' response buffer is just a message header. */
@@ -640,7 +999,7 @@ typedef struct TAG_DBPOD_RSPBUF_GET_MAC_ADDRESS
 {
     DBPOD_MSGHDR hdr;               /* Message header. */
     UCHAR       MacAddress[6];      /* MAC address. */
-    SHORT       pad1;               /* (padding) */
+    SHORT       pad1;               /* (padding = 0) */
 } DBPOD_RSPBUF_GET_MAC_ADDRESS;
 
 /********************************************
@@ -658,7 +1017,7 @@ typedef struct TAG_DBPOD_GATECFG
 {
     UCHAR       GateType;           /* Gate type. */
     UCHAR       Reference;          /* Gate reference. */
-    SHORT       pad1;               /* (padding) */
+    SHORT       pad1;               /* (padding = 0) */
     LONG        nThreshold;         /* Threshold percentage x 10 (not applicable to all gates). */
     LONG        lStart;             /* Sample at which gate starts in digitiser clock periods. */
     LONG        lWidth;             /* Number of samples in gate in digitiser clock periods. */
@@ -676,6 +1035,7 @@ typedef struct TAG_DBPOD_GATECFG
 #define DBPOD_GATETYPE_RECORD       3   /* Record gate */
 #define DBPOD_GATETYPE_PEAK         4   /* Peak gate */
 #define DBPOD_GATETYPE_LOSS_SIG     5   /* Loss Of Signal gate */
+#define DBPOD_GATETYPE_GAIN_CTRL    6   /* Gain Control Interface gate */
 
 /*
  * GateReference
@@ -720,8 +1080,14 @@ typedef struct TAG_DBPOD_CMDBUF_CHAN_CONFIG
     SHORT       nDigBits;           /* Sample size in bits. */
     ULONG       dwDelay;            /* Time period in microseconds before stepping or repeating. */
     SHORT       nRepeat;            /* Number of repeat firings with dwDelay interval. */
-    SHORT       nTx;                /* Physical connector to pulser. -1=do not pulse. */
-    SHORT       nRx;                /* Physical receiver input channel. -1=disable receiver. */
+    SHORT       nTx;                /* Physical transmit channel to pulse:
+                                       0 to nChannels-1 = use specified channel.
+                                       -1 = do not pulse.
+                                       -2 = use phased array. */
+    SHORT       nRx;                /* Physical receiver input channel:
+                                       0 to nChannels-1 = use specified channel.
+                                       -1 = disable receiver.
+                                       -2 = use phased array. */
     SHORT       nVoltage;           /* Pulser voltage in volts. */
     SHORT       nPulseWidth;        /* Pulse Width in nanoseconds. */
     SHORT       nGain;              /* Gain in millibels (100 mB = 1 dB). */
@@ -746,7 +1112,25 @@ typedef struct TAG_DBPOD_CMDBUF_CHAN_CONFIG
                                        unscaled values depending on the
                                        'fScaleHPF', 'fScaleLPF', and
                                        'fScaleRFF' values in the capabilities
-                                       response. */
+                                       response; if the digitization rate is
+                                       above the 'dwFiltScaleFreq' value in
+                                       the capabilities then incorrect filter
+                                       frequencies will be applied.
+                                       If wCompatLevel=2, filter frequency
+                                       scaling is enabled only for
+                                       digitization rates below the
+                                       'dwFiltScaleFreq' value in the
+                                       capabilities; the 'nHPF', 'nLPF' and
+                                       'nRFF' values are assumed to be set to
+                                       scaled or unscaled values depending on
+                                       the 'fScaledHPF', 'fScaledLPF', and
+                                       'fScaledRFF' values in the capabilities
+                                       response, and on the digitization rate;
+                                       the scaling is not applied for
+                                       digitization rates above the
+                                       'dwFiltScaleFreq' value in the
+                                       capabilities response.
+                                       */
     LONG        nRFF;               /* Post rectifier filter (low pass) in Hz. */
     ULONG       nSampleFreq;        /* Digitisation rate (Hz). */
     ULONG       dwDACStart;         /* DAC curve start element.  Must be a multiple of DAC memory page size. */
@@ -871,12 +1255,12 @@ typedef struct TAG_DBPOD_CMDBUF_VIDEO_CONFIG
     SHORT       nStrmRateScale;     /* Video stream frame rate reduction
                                      * factor compared to tracking (1 to 16)
                                      * or 0 to disable video capture. */
-    SHORT       pad1;               /* (padding) */
+    SHORT       pad1;               /* (padding = 0) */
     LONG        fAGC;               /* LED feedback gain control active */
     SHORT       nAGCThreshold;      /* LED threshold (if AGC enabled) */
     SHORT       nFormat;            /* Video Stream format */
     SHORT       nNoDotThreshold;    /* "No dot" threshold. */
-    SHORT       pad2;               /* (padding) */
+    SHORT       pad2;               /* (padding = 0) */
 } DBPOD_CMDBUF_VIDEO_CONFIG;
 
 /*
@@ -949,6 +1333,64 @@ typedef struct TAG_DBPOD_RSPBUF_SCAN_CONFIG
 
 /********************************************
  *
+ * 'Phased Array Channel Element/Delay' command and response.
+ *
+ ********************************************/
+#define DBPOD_CMDCODE_PA_CHAN_ELEM_DELAY    0x0035
+#define DBPOD_RSPCODE_PA_CHAN_ELEM_DELAY    0x8035
+
+/* 'Phased Array Channel Element/Delay' command buffer. */
+typedef struct TAG_DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY
+{
+    DBPOD_MSGHDR hdr;               /* Message header. */
+    SHORT       nIndex;             /* Sequence table index.
+                                       If set to -1 it applies to all
+                                       sequence table entries.
+                                       If set in range 0 to nChanConfigs-1
+                                       it applies to a specific sequence
+                                       table entry.
+                                       nIndex is ignored for balancing
+                                       gains and balancing delays. */
+    UCHAR       bTypeMask;          /* Type of data being configured. */
+    CHAR        pad1;               /* (padding = 0) */
+    USHORT      nCount;             /* Length of dwValue array. */
+    SHORT       pad2;               /* (padding = 0) */
+    ULONG       dwValue[DBPOD_ANYLENGTH]; /* Element numbers or delays (ns). */
+} DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY;
+
+/*
+ * bTypeMask
+ *
+ * Specifies whether the 'Phased Array Channel Element/Delay' command is
+ * configuring a list of TX element numbers, RX element numbers,
+ * TX delays, or RX delays.
+ *
+ * It is possible to combine TX element numbers and RX element numbers into
+ * a single list, or combine TX and RX delays into a single list by setting
+ * multiple bits in the bTypeMask value.
+ *
+ * Also used for lists of element balancing gains and element balancing delays.
+ * The nIndex value is ignored for element balancing gains and element
+ * balancing delays.
+ */
+#define DBPOD_PATYPE_TX_ELEM    0x01    /* TX element numbers */
+#define DBPOD_PATYPE_RX_ELEM    0x02    /* RX element numbers */
+#define DBPOD_PATYPE_TX_DELAY   0x04    /* TX delays (nanoseconds) */
+#define DBPOD_PATYPE_RX_DELAY   0x08    /* RX delays (nanoseconds) */
+#define DBPOD_PATYPE_BAL_GAIN   0x10    /* Balancing gain (millibels) */
+#define DBPOD_PATYPE_BAL_DELAY  0x20    /* Balancing delay (nanoseconds) */
+
+/*
+ * 'Phased Array Channel Element/Delay' response buffer is just a
+ * message header.
+ */
+typedef struct TAG_DBPOD_RSPBUF_PA_CHAN_ELEM_DELAY
+{
+    DBPOD_MSGHDR hdr;               /* Message header. */
+} DBPOD_RSPBUF_PA_CHAN_ELEM_DELAY;
+
+/********************************************
+ *
  * 'Set Encoders' command and response.
  *
  ********************************************/
@@ -959,7 +1401,7 @@ typedef struct TAG_DBPOD_CMDBUF_SET_ENCODERS
 {
     DBPOD_MSGHDR hdr;               /* Message header. */
     USHORT      nAxisBits;          /* Axes to set position. */
-    SHORT       pad1;               /* (padding) */
+    SHORT       pad1;               /* (padding = 0) */
     LONG        lReading[DBPOD_ANYLENGTH]; /* New settings for each specified axis. */
 } DBPOD_CMDBUF_SET_ENCODERS;
 /* Basic size of DBPOD_CMDBUF_SET_ENCODERS without lReading[]. */
@@ -993,7 +1435,7 @@ typedef struct TAG_DBPOD_RSPBUF_GET_ENCODERS
 {
     DBPOD_MSGHDR hdr;               /* Message header. */
     USHORT      nAxes;              /* Number of axes that follow. */
-    SHORT       pad1;               /* (padding) */
+    SHORT       pad1;               /* (padding = 0) */
     LONG        lReading[DBPOD_ANYLENGTH]; /* Readings for axes 0 to nAxes-1. */
 } DBPOD_RSPBUF_GET_ENCODERS;
 /* Basic size of DBPOD_RSPBUF_GET_ENCODERS without lReading[]. */
@@ -1149,7 +1591,7 @@ typedef struct TAG_DBPOD_RSPBUF_SYNC_VIDEO_UNKNOWN_FORMAT
     SHORT       nFormat;            /* Video block format. */
     SHORT       nWidth;             /* Width of frame in pixels. */
     SHORT       nHeight;            /* Height of frame in pixels. */
-    SHORT       pad1;               /* (padding) */
+    SHORT       pad1;               /* (padding = 0) */
     UCHAR       bData[DBPOD_ANYLENGTH]; /* Data. */
 } DBPOD_RSPBUF_SYNC_VIDEO_UNKNOWN_FORMAT;
 /* Basic size of DBPOD_RSPBUF_SYNC_VIDEO_UNKNOWN_FORMAT without bData[]. */
@@ -1187,7 +1629,7 @@ typedef struct TAG_DBPOD_VIDTRK
     unsigned    uXPos : 10;         /* Video Tracking X position */
     unsigned    fUTCompressed : 1;  /* Flag indicating UT data is compressed */
     unsigned    fUT16Bit : 1;       /* Flag indicating 16-bit UT data */
-    unsigned     : 2;               /* (padding) */
+    unsigned     : 2;               /* (padding = 0) */
     unsigned    uAmp : 8;           /* Video Tracking dot amplitude */
 } DBPOD_VIDTRK;
 
@@ -1350,6 +1792,7 @@ typedef struct TAG_DBPOD_CHUNK_UT_SOC
 #define DBPOD_VTXPOS(dwVt)  ((USHORT)(((dwVt) >> 10) & 0x3FF))  /* VT X pos */
 #define DBPOD_VTAMP(dwVt)   ((UCHAR)(((dwVt) >> 24) & 0xFF))    /* VT dot amplitude */
 #define DBPOD_VT_UTCOMPRESSED(dwVt) ((unsigned)(((dwVt) >> 20) & 1)) /* UT data compressed */
+#define DBPOD_VT_UT16BIT(dwVt)      ((unsigned)(((dwVt) >> 21) & 1)) /* UT data 16-bit */
 
 /* Each chunk of UT data ends with the following, starting on a 4-byte
  * boundary... */
