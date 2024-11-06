@@ -152,9 +152,25 @@ static void show_get_capabilities_response(DBPOD_RSPBUF_GET_CAPABILITIES *msg)
     {
         printf(", wRxFocusGranularity=%u", msg->wRxFocusGranularity);
     }
-    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wMaxFocusSteps))
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wTxMaxFocusSteps))
     {
-        printf(", wMaxFocusSteps=%u", msg->wMaxFocusSteps);
+        printf(",\nwTxMaxFocusSteps=%u", msg->wTxMaxFocusSteps);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, wRxMaxFocusSteps))
+    {
+        printf(", wRxMaxFocusSteps=%u", msg->wRxMaxFocusSteps);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, nMinBalanceGain))
+    {
+        printf(",\nnMinBalanceGain=%d", msg->nMinBalanceGain);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, nMaxBalanceGain))
+    {
+        printf(", nMaxBalanceGain=%d", msg->nMaxBalanceGain);
+    }
+    if (size >= ENDOF(DBPOD_RSPBUF_GET_CAPABILITIES, nBalanceGainRes))
+    {
+        printf(", nBalanceGainRes=%d", msg->nBalanceGainRes);
     }
     printf("\n");
 }

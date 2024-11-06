@@ -409,11 +409,22 @@ extern "C" {
  *         granularity (RX focus step size) in nanoseconds for phased
  *         array.
  *
- *     (h) 'USHORT wMaxFocusSteps' is the maximum number of RX/TX focus
+ *     (h) 'USHORT wTxMaxFocusSteps' is the maximum number of TX focus
  *         delay steps for phased array.  So the maximum TX focus delay
- *         in nanoseconds is 'wMaxFocusSteps * wTxFocusGranularity',
- *         and the maximum RX focus delay in nanoseconds is
- *         'wMaxFocusSteps * wRxFocusGranularity'.
+ *         in nanoseconds is 'wTxMaxFocusSteps * wTxFocusGranularity'.
+ *
+ *     (i) 'USHORT wRxMaxFocusSteps' is the maximum number of RX focus
+ *         delay steps for phased array.  So the maximum RX focus delay
+ *         in nanoseconds is 'wRxMaxFocusSteps * wRxFocusGranularity'.
+ *
+ *     (j) 'SHORT nMinBalanceGain' is the minimum phased array element
+ *         balancing gain in millibels.
+ *
+ *     (k) 'SHORT nMaxBalanceGain' is the maximum phased array element
+ *         balancing gain in millibels.
+ *
+ *     (l) 'SHORT nBalanceGainRes' is the resolution of the the phased
+ *         array balancing gain in millibels.
  *
  * 4.  The interpretation of the 'dwFiltScaleFreq' field value (in
  *     DBPOD_RSPBUF_GET_CAPABILITIES) and its effect on the scaling of
@@ -744,17 +755,40 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     USHORT      wMaxElements;       /* Phased array max number of elements. */
     USHORT      wTxFocusGranularity;/* TX focus (delays) granularity in ns. */
     USHORT      wRxFocusGranularity;/* RX focus (delays) granularity in ns. */
-    USHORT      wMaxFocusSteps;     /* Maximum number of TX/RX delay steps
+    USHORT      wTxMaxFocusSteps;   /* Maximum number of TX delay steps
+                                       that the hardware supports.  So the
+                                       maximum TX delay in nanoseconds is
+                                       wTxMaxFocusSteps * wRxFocusGranularity.*/
+    USHORT      wRxMaxFocusSteps;   /* Maximum number of RX delay steps
                                        that the hardware supports.  So the
                                        maximum RX delay in nanoseconds is
-                                       wMaxFocusSteps * wRxFocusGranularity,
-                                       and the maximum TX delay in nanoseconds
-                                       is wMaxFocusSteps * wTxFocusGranularity. */
+                                       wRxMaxFocusSteps * wRxFocusGranularity.*/
+    SHORT       nMinBalanceGain;    /* Minimum phased array element balancing
+                                       gain in millibels. */
+    SHORT       nMaxBalanceGain;    /* Maximum phased array element balancing
+                                       gain in millibels. */
+    SHORT       nBalanceGainRes;    /* Resolution of phased array element
+                                       balancing gain in millibels. */
     /*
      * The length from the start of the 'szHwName' field up to this point
-     * is 528 bytes.
+     * is 536 bytes.
      */
 } DBPOD_RSPBUF_GET_CAPABILITIES;
+/*
+ * Legacy (unextended) size of DBPOD_RSPBUF_GET_CAPABILITIES up to and
+ * including 'dwMaxPRF'.
+ */
+#define LEGACY_SIZE_DBPOD_RSPBUF_GET_CAPABILITIES   \
+    (FIELD_OFFSET(DBPOD_RSPBUF_GET_CAPABILITIES, dwMaxPRF) + \
+     sizeof(((DBPOD_RSPBUF_GET_CAPABILITIES *)0)->dwMaxPRF))
+/*
+ * Legacy (unextended) length of capabilities in bytes from the start of
+ * 'szHwName[0]' to the end of 'dwMaxPRF'.  This is the minimum value of
+ * 'dwMaxCapLength' in DBPOD_CMDBUF_GET_CAPABILITIES_EXT and the default
+ * if 'dwMaxCapLength' is missing (for DBPOD_CMDBUF_GET_CAPABILITIES).
+ */
+#define LEGACY_CAPABILITIES_LENGTH  \
+    (LEGACY_SIZE_DBPOD_RSPBUF_GET_CAPABILITIES - sizeof(DBPOD_MSGHDR))
 
 /* Hardware type codes. */
 #define DBPOD_HARDTYPE_ORIG_ETH     0   /* Classic Ethernet Pod (Nios II). */
@@ -1069,7 +1103,7 @@ typedef struct TAG_DBPOD_GATECFG
  * lParameter depends on GateType
  */
 
-/* lParameter for DBPOD_GATETYPE_INTERFACE is initial gain in milliBels */
+/* lParameter for DBPOD_GATETYPE_INTERFACE is initial gain in millibels */
 
 /* 'Channel/Sequence Configuration' command buffer (portion before the gates). */
 /* (Note: db-Pod does not support nRepeat values other than 1.) */
@@ -1353,10 +1387,14 @@ typedef struct TAG_DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY
                                        gains and balancing delays. */
     UCHAR       bTypeMask;          /* Type of data being configured. */
     CHAR        pad1;               /* (padding = 0) */
-    USHORT      nCount;             /* Length of dwValue array. */
+    USHORT      nCount;             /* Length of anValue array. */
     SHORT       pad2;               /* (padding = 0) */
-    ULONG       dwValue[DBPOD_ANYLENGTH]; /* Element numbers or delays (ns). */
+    LONG        anValue[DBPOD_ANYLENGTH]; /* Element numbers or delays (ns). */
 } DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY;
+/* Basic size of DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY without anValue[]. */
+#define BASE_SIZE_DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY   \
+    FIELD_OFFSET(DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY, anValue[0])
+/* Followed by array LONG anValue[nCount]. */
 
 /*
  * bTypeMask
@@ -1373,12 +1411,12 @@ typedef struct TAG_DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY
  * The nIndex value is ignored for element balancing gains and element
  * balancing delays.
  */
-#define DBPOD_PATYPE_TX_ELEM    0x01    /* TX element numbers */
-#define DBPOD_PATYPE_RX_ELEM    0x02    /* RX element numbers */
-#define DBPOD_PATYPE_TX_DELAY   0x04    /* TX delays (nanoseconds) */
-#define DBPOD_PATYPE_RX_DELAY   0x08    /* RX delays (nanoseconds) */
-#define DBPOD_PATYPE_BAL_GAIN   0x10    /* Balancing gain (millibels) */
-#define DBPOD_PATYPE_BAL_DELAY  0x20    /* Balancing delay (nanoseconds) */
+#define DBPOD_PAMASK_TX_ELEM    0x01    /* TX element numbers */
+#define DBPOD_PAMASK_RX_ELEM    0x02    /* RX element numbers */
+#define DBPOD_PAMASK_TX_DELAY   0x04    /* TX delays (nanoseconds) */
+#define DBPOD_PAMASK_RX_DELAY   0x08    /* RX delays (nanoseconds) */
+#define DBPOD_PAMASK_BAL_GAIN   0x10    /* Balancing gain (millibels) */
+#define DBPOD_PAMASK_BAL_DELAY  0x20    /* Balancing delay (nanoseconds) */
 
 /*
  * 'Phased Array Channel Element/Delay' response buffer is just a
