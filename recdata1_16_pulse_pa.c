@@ -398,8 +398,8 @@ static int do_pulse_config(unsigned index, unsigned len)
 
     m.cmd.hdr.dwSequence = cmdseq++;
     /* Round up to 4-byte boundary, 4 pulses per byte. */
-    m.cmd.hdr.dwLength = offsetof(DBPOD_CMDBUF_PULSE_CONFIG,
-            bData[((len + 15) & ~15) / 4]) - sizeof(ULONG);
+    m.cmd.hdr.dwLength = offsetof(DBPOD_CMDBUF_PULSE_CONFIG, bData[0]) -
+        sizeof(ULONG) + (((len + 15) & ~15) / 4);
     return do_cmd(&m.cmd.hdr);
 }
 
