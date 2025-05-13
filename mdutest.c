@@ -24,6 +24,7 @@ static UCHAR stop_bits = 1;
 static UCHAR mdu_port = 0;
 static ULONG timeout = 0;
 static CHAR continuation = 0;
+static CHAR force = 0;
 static char *mdu_data = NULL;
 
 #define HEADER_LEN (sizeof(DBPOD_MSGHDR) - sizeof(ULONG))
@@ -446,7 +447,7 @@ static int do_mdu_data(void)
     ULONG msglen;
     int err;
 
-    datalen = strlen(mdu_data);
+    datalen = mdu_data ? strlen(mdu_data) : 0;
     if (datalen > 0xFFFF)
     {
         datalen = 0xFFFF;
@@ -467,7 +468,10 @@ static int do_mdu_data(void)
     cmd->wLength = datalen;
     cmd->nPort = mdu_port;
     cmd->fContinuation = continuation;
-    memcpy(cmd->bData, mdu_data, datalen);
+    if (mdu_data)
+    {
+        memcpy(cmd->bData, mdu_data, datalen);
+    }
     err = do_cmd(&cmd->hdr);
     free(cmd);
     return err;
@@ -482,7 +486,7 @@ static int do_test(void)
     {
         return err;
     }
-    if (mdu_data)
+    if (mdu_data || continuation || timeout || force)
     {
         err = do_mdu_data();
         if (err < 0)
@@ -504,13 +508,14 @@ int main(int argc, char *argv[])
         { "baud", required_argument, NULL, 'b' },
         { "continuation", no_argument, NULL, 'c' },
         { "data-bits", required_argument, NULL, 'd' },
+        { "force", no_argument, NULL, 'f' },
         { "mdu-port", required_argument, NULL, 'm' },
         { "parity", required_argument, NULL, 'p' },
         { "stop-bits", required_argument, NULL, 's' },
         { "timeout", required_argument, NULL, 't' },
         { "help", no_argument, NULL, OPT_HELP },
     };
-    static const char opts[] = "b:cd:m:p:s:t:";
+    static const char opts[] = "b:cd:fm:p:s:t:";
     const char *node, *service;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -595,6 +600,9 @@ int main(int argc, char *argv[])
                 data_bits = tmp;
             }
             /* data_bits_specified = 1; */
+            break;
+        case 'f':   /* --force */
+            force = 1;
             break;
         case 'm':   /* --mdu-port=MDUPORT */
             errno = 0;
@@ -692,10 +700,14 @@ int main(int argc, char *argv[])
                 "             38400|57600|115200|230400}\n"
                 " -c, --continuation\n"
                 " -d, --data-bits={5|6|7|8}\n"
+                " -f, --force\n"
                 " -m, --mdu=MDUPORTNUM\n"
                 " -p, --parity={none|n|odd|o|even|e}\n"
                 " -s, --stop-bits={1|2}\n"
-                " -t, --timeout=MILLISECONDS\n",
+                " -t, --timeout=MILLISECONDS\n"
+                "\n"
+                "--force forces MDU DATA command to be sent even if no message,\n"
+                "or not a continuation, or no timeout\n",
                 progname);
         exit(help ? EXIT_SUCCESS : 2);
     }
