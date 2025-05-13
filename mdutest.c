@@ -61,14 +61,14 @@ static void dump_mdu_config_cmd(const DBPOD_MSGHDR *hdr)
 
 static void print_dqescape(const char *s, size_t len)
 {
+    const unsigned char *us = (const unsigned char *)s;
     size_t n;
 
     for (n = 0; n < len; n++)
     {
-        int c = s[n];
-        int uc = (unsigned char)s[n];
+        int c = us[n];
 
-        if (isprint(uc) && c != '"' && c != '\\')
+        if (isprint(c) && c != '"' && c != '\\')
         {
             putc(c, stdout);
         }
@@ -106,7 +106,7 @@ static void print_dqescape(const char *s, size_t len)
             }
             if (e == EOF)
             {
-                printf("\\x%02X", uc);
+                printf("\\x%02X", c);
             }
             else
             {
