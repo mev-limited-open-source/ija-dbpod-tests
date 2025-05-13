@@ -373,7 +373,8 @@ static int do_set_encoders(void)
         }
     }
     m.cmd.hdr.dwLength =
-        offsetof(DBPOD_CMDBUF_SET_ENCODERS, lReading[r]) - sizeof(ULONG);
+        offsetof(DBPOD_CMDBUF_SET_ENCODERS, lReading[0]) - sizeof(ULONG) +
+        r * sizeof(m.cmd.lReading[0]);
     m.cmd.hdr.dwSequence = cmdseq++;
     m.cmd.hdr.wCmd = DBPOD_CMDCODE_SET_ENCODERS;
     return do_cmd(&m.cmd.hdr);
