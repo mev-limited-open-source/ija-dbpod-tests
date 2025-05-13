@@ -430,7 +430,8 @@ static int do_chan_configs(void)
     m.cmd.Gate[1].lParameter = 0;
 
     m.cmd.hdr.dwLength =
-        offsetof(DBPOD_CMDBUF_CHAN_CONFIG, Gate[m.cmd.nGates]) - sizeof(ULONG);
+        offsetof(DBPOD_CMDBUF_CHAN_CONFIG, Gate[0]) - sizeof(ULONG) +
+        m.cmd.nGates * sizeof(m.cmd.Gate[0]);
     for (n = 0; n < 16; n++)
     {
         m.cmd.nIndex = n;
@@ -458,8 +459,8 @@ static int do_pa_balance_configs(void)
     m.cmd.bTypeMask = DBPOD_PAMASK_BAL_GAIN;
     m.cmd.nCount = 128;
     m.cmd.hdr.dwLength =
-        offsetof(DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY, anValue[m.cmd.nCount]) -
-        sizeof(ULONG);
+        offsetof(DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY, anValue[0]) - sizeof(ULONG) +
+        m.cmd.nCount * sizeof(m.cmd.anValue[0]);
     m.cmd.hdr.dwSequence = cmdseq++;
     ret = do_cmd(&m.cmd.hdr);
     if (ret)
@@ -492,8 +493,8 @@ static int do_pa_channel_configs(void)
         m.cmd.anValue[e] = e ^ 6;
     }
     m.cmd.hdr.dwLength =
-        offsetof(DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY, anValue[m.cmd.nCount]) -
-        sizeof(ULONG);
+        offsetof(DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY, anValue[0]) - sizeof(ULONG) +
+        m.cmd.nCount * sizeof(m.cmd.anValue[0]);
     m.cmd.hdr.dwSequence = cmdseq++;
     ret = do_cmd(&m.cmd.hdr);
     if (ret)
