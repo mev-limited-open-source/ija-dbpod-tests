@@ -135,7 +135,8 @@ static void dump_mdu_data(const DBPOD_MSGHDR *hdr)
             (unsigned)msg->dwTimeout, msg->wLength, msg->nPort,
             msg->fContinuation);
     if (msg->hdr.dwLength <
-            offsetof(DBPOD_CMDBUF_MDU_DATA, bData[datalen]) - sizeof(ULONG))
+            offsetof(DBPOD_CMDBUF_MDU_DATA, bData[0]) - sizeof(ULONG) +
+            datalen * sizeof(msg->bData[0]))
     {
         printf("*** MDU data too short\n");
         datalen = msg->hdr.dwLength + sizeof(ULONG) -
@@ -450,7 +451,8 @@ static int do_mdu_data(void)
     {
         datalen = 0xFFFF;
     }
-    msglen = offsetof(DBPOD_CMDBUF_MDU_DATA, bData[datalen]);
+    msglen = offsetof(DBPOD_CMDBUF_MDU_DATA, bData[0]) +
+             datalen * sizeof(cmd->bData[0]);
     cmd = malloc(msglen);
     if (!cmd)
     {
