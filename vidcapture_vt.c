@@ -68,7 +68,8 @@ dump_video_resp_rawgrey8(const DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8 *rsp)
         return;
     }
     if (rsp->hdr.dwLength < offsetof(DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8,
-                bPixels[(size_t)rsp->nWidth * rsp->nHeight]) - sizeof(ULONG))
+                bPixels[0]) - sizeof(ULONG) +
+            ((size_t)rsp->nWidth * rsp->nHeight) * sizeof(rsp->bPixels[0]))
     {
         printf("*** Video data too short\n");
         return;
@@ -136,7 +137,8 @@ dump_video_resp_rawgrey8vt(const DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8VT *rsp)
         return;
     }
     if (rsp->hdr.dwLength < offsetof(DBPOD_RSPBUF_SYNC_VIDEO_RAWGREY8VT,
-                bPixels[(size_t)rsp->nWidth * rsp->nHeight]) - sizeof(ULONG))
+                bPixels[0]) - sizeof(ULONG) +
+            ((size_t)rsp->nWidth * rsp->nHeight) * sizeof(rsp->bPixels[0]))
     {
         printf("*** Video data too short\n");
         return;
