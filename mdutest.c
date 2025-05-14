@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <getopt.h>
 #include <errno.h>
+#include <time.h>
 
 #include "dbpod_wtypes.h"
 #include "dbpod_coms.h"
@@ -23,8 +24,10 @@ static UCHAR parity = DBPOD_MDU_PARITY_NONE;
 static UCHAR stop_bits = 1;
 static UCHAR mdu_port = 0;
 static ULONG timeout = 0;
+static ULONG sleep_ms = 0;
 static CHAR continuation = 0;
 static CHAR force = 0;
+static CHAR no_config = 0;
 static char *mdu_data = NULL;
 
 #define HEADER_LEN (sizeof(DBPOD_MSGHDR) - sizeof(ULONG))
@@ -474,6 +477,21 @@ static int do_mdu_data(void)
     }
     err = do_cmd(&cmd->hdr);
     free(cmd);
+    if (err >= 0 && sleep_ms)
+    {
+        int err2;
+        struct timespec ts = {
+            .tv_sec = sleep_ms / 1000,
+            .tv_nsec = (sleep_ms % 1000) * 1000000L,
+        };
+
+        err2 = nanosleep(&ts, NULL);
+        if (err2 == -1)
+        {
+            perror("sleep");
+            err = err2;
+        }
+    }
     return err;
 }
 
@@ -481,10 +499,13 @@ static int do_test(void)
 {
     int err;
 
-    err = do_mdu_config();
-    if (err < 0)
+    if (!no_config)
     {
-        return err;
+        err = do_mdu_config();
+        if (err < 0)
+        {
+            return err;
+        }
     }
     if (mdu_data || continuation || timeout || force)
     {
@@ -510,12 +531,14 @@ int main(int argc, char *argv[])
         { "data-bits", required_argument, NULL, 'd' },
         { "force", no_argument, NULL, 'f' },
         { "mdu-port", required_argument, NULL, 'm' },
+        { "no-config", no_argument, NULL, 'n' },
         { "parity", required_argument, NULL, 'p' },
+        { "sleep", required_argument, NULL, 'S' },
         { "stop-bits", required_argument, NULL, 's' },
         { "timeout", required_argument, NULL, 't' },
         { "help", no_argument, NULL, OPT_HELP },
     };
-    static const char opts[] = "b:cd:fm:p:s:t:";
+    static const char opts[] = "b:cd:fm:np:S:s:t:";
     const char *node, *service;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -620,6 +643,9 @@ int main(int argc, char *argv[])
             mdu_port = tmp;
             /* mdu_port_specified = 1; */
             break;
+        case 'n':   /* --no-config */
+            no_config = 1;
+            break;
         case 'p':   /* --parity={none|odd|even} */
             if (!strcasecmp(optarg, "none") || !strcasecmp(optarg, "n"))
             {
@@ -637,6 +663,19 @@ int main(int argc, char *argv[])
             {
                 fprintf(stderr, "Option --parity='%s' invalid\n", optarg);
                 err = 1;
+            }
+            break;
+        case 'S':   /* --sleep=MS */
+            errno = 0;
+            tmp = strtoul(optarg, &end, 10);
+            if (errno || !isdigit(*optarg) || *end)
+            {
+                fprintf(stderr, "Option --sleep='%s' invalid\n", optarg);
+                err = 1;
+            }
+            else
+            {
+                sleep_ms = tmp;
             }
             break;
         case 's':   /* --stop-bits=N */
@@ -702,12 +741,17 @@ int main(int argc, char *argv[])
                 " -d, --data-bits={5|6|7|8}\n"
                 " -f, --force\n"
                 " -m, --mdu=MDUPORTNUM\n"
+                " -n, --no-config\n"
                 " -p, --parity={none|n|odd|o|even|e}\n"
+                " -S, --sleep=MS\n"
                 " -s, --stop-bits={1|2}\n"
                 " -t, --timeout=MILLISECONDS\n"
                 "\n"
-                "--force forces MDU DATA command to be sent even if no message,\n"
-                "or not a continuation, or no timeout\n",
+                "--force forces MDU DATA command to be sent even if no message, or not\n"
+                "a continuation, or no timeout.\n"
+                "\n"
+                "--no-config skips the MDU CONFIG command, so the baud rate, number of\n"
+                "data bits, parity, and number of stop bits are not configured.\n",
                 progname);
         exit(help ? EXIT_SUCCESS : 2);
     }
