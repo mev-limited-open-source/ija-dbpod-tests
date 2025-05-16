@@ -25,7 +25,10 @@ static UCHAR stop_bits = 1;
 static UCHAR mdu_port = 0;
 static ULONG timeout = 0;
 static ULONG sleep_ms = 0;
+static ULONG final_sleep_ms = 0;
+static ULONG repeats = 1;
 static CHAR continuation = 0;
+static ULONG xtra_contins = 0;
 static CHAR force = 0;
 static CHAR no_config = 0;
 static char *mdu_data = NULL;
@@ -443,7 +446,7 @@ static int do_mdu_config(void)
     return do_cmd(&cmd.hdr);
 }
 
-static int do_mdu_data(void)
+static int do_mdu_data2(const char *mdu_data, CHAR continuation)
 {
     DBPOD_CMDBUF_MDU_DATA *cmd;
     ULONG datalen;
@@ -495,9 +498,15 @@ static int do_mdu_data(void)
     return err;
 }
 
+static int do_mdu_data(void)
+{
+    return do_mdu_data2(mdu_data, continuation);
+}
+
 static int do_test(void)
 {
     int err;
+    unsigned long i;
 
     if (!no_config)
     {
@@ -509,10 +518,34 @@ static int do_test(void)
     }
     if (mdu_data || continuation || timeout || force)
     {
-        err = do_mdu_data();
+        for (i = 0; i < repeats; i++)
+        {
+            err = do_mdu_data();
+            if (err < 0)
+            {
+                return err;
+            }
+        }
+    }
+    for (i = 0; i < xtra_contins; i++)
+    {
+        err = do_mdu_data2(NULL, 1);
         if (err < 0)
         {
             return err;
+        }
+    }
+    if (final_sleep_ms)
+    {
+        struct timespec ts = {
+            .tv_sec = final_sleep_ms / 1000,
+            .tv_nsec = (final_sleep_ms % 1000) * 1000000L,
+        };
+
+        err = nanosleep(&ts, NULL);
+        if (err == -1)
+        {
+            perror("sleep");
         }
     }
     return err;
@@ -529,16 +562,19 @@ int main(int argc, char *argv[])
         { "baud", required_argument, NULL, 'b' },
         { "continuation", no_argument, NULL, 'c' },
         { "data-bits", required_argument, NULL, 'd' },
+        { "final-sleep", required_argument, NULL, 'F' },
         { "force", no_argument, NULL, 'f' },
         { "mdu-port", required_argument, NULL, 'm' },
         { "no-config", no_argument, NULL, 'n' },
         { "parity", required_argument, NULL, 'p' },
+        { "repeats", required_argument, NULL, 'r' },
         { "sleep", required_argument, NULL, 'S' },
         { "stop-bits", required_argument, NULL, 's' },
         { "timeout", required_argument, NULL, 't' },
+        { "xtra-continuations", required_argument, NULL, 'x' },
         { "help", no_argument, NULL, OPT_HELP },
     };
-    static const char opts[] = "b:cd:fm:np:S:s:t:";
+    static const char opts[] = "b:cd:F:fm:np:r:S:s:t:x:";
     const char *node, *service;
     struct addrinfo hints;
     struct addrinfo *result, *rp;
@@ -624,6 +660,19 @@ int main(int argc, char *argv[])
             }
             /* data_bits_specified = 1; */
             break;
+        case 'F':   /* --final-sleep=MILLISECONDS */
+            errno = 0;
+            tmp = strtoul(optarg, &end, 10);
+            if (errno || !isdigit(*optarg) || *end)
+            {
+                fprintf(stderr, "Option --sleep='%s' invalid\n", optarg);
+                err = 1;
+            }
+            else
+            {
+                final_sleep_ms = tmp;
+            }
+            break;
         case 'f':   /* --force */
             force = 1;
             break;
@@ -665,7 +714,20 @@ int main(int argc, char *argv[])
                 err = 1;
             }
             break;
-        case 'S':   /* --sleep=MS */
+        case 'r':   /* --repeats=N */
+            errno = 0;
+            tmp = strtoul(optarg, &end, 10);
+            if (errno || !isdigit(*optarg) || *end)
+            {
+                fprintf(stderr, "Option --repeats='%s' invalid\n", optarg);
+                err = 1;
+            }
+            else
+            {
+                repeats = tmp;
+            }
+            break;
+        case 'S':   /* --sleep=MILLISECONDS */
             errno = 0;
             tmp = strtoul(optarg, &end, 10);
             if (errno || !isdigit(*optarg) || *end)
@@ -716,6 +778,19 @@ int main(int argc, char *argv[])
                 /* timeout_specified = 1; */
             }
             break;
+        case 'x':   /* --xtra-continuations=N */
+            errno = 0;
+            tmp = strtoul(optarg, &end, 10);
+            if (errno || !isdigit(*optarg) || *end)
+            {
+                fprintf(stderr, "Option --xtra-continuations='%s' invalid\n", optarg);
+                err = 1;
+            }
+            else
+            {
+                xtra_contins = tmp;
+            }
+            break;
         case OPT_HELP:
             help = 1;
             break;
@@ -739,13 +814,16 @@ int main(int argc, char *argv[])
                 "             38400|57600|115200|230400}\n"
                 " -c, --continuation\n"
                 " -d, --data-bits={5|6|7|8}\n"
+                " -F, --final-sleep=MILLISECONDS\n"
                 " -f, --force\n"
                 " -m, --mdu=MDUPORTNUM\n"
                 " -n, --no-config\n"
                 " -p, --parity={none|n|odd|o|even|e}\n"
-                " -S, --sleep=MS\n"
+                " -r, --repeats=N\n"
+                " -S, --sleep=MILLISECONDS\n"
                 " -s, --stop-bits={1|2}\n"
                 " -t, --timeout=MILLISECONDS\n"
+                " -x, --xtra-continuations=N\n"
                 "\n"
                 "--force forces MDU DATA command to be sent even if no message, or not\n"
                 "a continuation, or no timeout.\n"
