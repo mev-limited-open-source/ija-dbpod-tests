@@ -6,7 +6,7 @@
  *
  * db-Pod Communications Messages
  *
- * Copyright (c) 2008-2024 MEV Ltd., Bell Technology Ltd.
+ * Copyright (c) 2008-2026 MEV Ltd., Bell Technology Ltd.
  * All rights reserved.
  *
  * MODULE CONTENTS
@@ -418,13 +418,28 @@ extern "C" {
  *         in nanoseconds is 'wRxMaxFocusSteps * wRxFocusGranularity'.
  *
  *     (j) 'SHORT nMinBalanceGain' is the minimum phased array element
- *         balancing gain in millibels.
+ *         gain in millibels.  It is the minimum for both the global
+ *         element balancing gain and (since packet version 0x50001) the
+ *         sequence table specific element gains, and is the minimum for
+ *         the sum of those two gains.
  *
  *     (k) 'SHORT nMaxBalanceGain' is the maximum phased array element
- *         balancing gain in millibels.
+ *         gain in millibels.  It is the maximum for both the global
+ *         element balancing gain and (since packet version 0x50001) the
+ *         sequence table specific element gains, and is the maximum for
+ *         the sum of those two gains.
  *
- *     (l) 'SHORT nBalanceGainRes' is the resolution of the the phased
- *         array balancing gain in millibels.
+ *     (l) 'SHORT nBalanceGainRes' is the nominal granularity of the
+ *         phased array element gain in millibels at a gain of -1000
+ *         millibels.  It applies to the global element balancing gain
+ *         and (since packet version 0x50001) the sequence table
+ *         specific element gains.  The reference point of -1000
+ *         millibels is for the sum of those two gains.  If the phased
+ *         array element gains are linear in the hardware implementation
+ *         (as they currently are), the actual granularity in millibels
+ *         would become exponentially larger at lower gains, eventually
+ *         becoming infinite when the linear gain used by the hardware
+ *         becomes zero (negative infinity millibels).
  *
  * 4.  The interpretation of the 'dwFiltScaleFreq' field value (in
  *     DBPOD_RSPBUF_GET_CAPABILITIES) and its effect on the scaling of
@@ -546,8 +561,46 @@ extern "C" {
  *     value -2 to specify that the sequence table entry will use the
  *     phased array elements.
  *
+ * 7. The 'dwFlags' field of DBPOD_CMDBUF_START_UT has a group of bits
+ *    to specify how phased array elements should be mapped:
+ *
+ *    Additional 'dwFlags' bit-mask values:
+ *
+ *      0xFF000000 (DBPOD_START_UT_PE_MAP_MASK) - mask for values below
+ *
+ *    'dwFlags & DBPOD_START_UT_PE_MAP_MASK' values.  Use only one of
+ *    these values in the bit mask.  They can be combined with unrelated
+ *    'dwFlags' bits outside the mask:
+ *
+ *      0x00000000 (DBPOD_START_UT_PE_MAP_DEFAULT) - use default mapping
+ *      0x01000000 (DBPOD_START_UT_PE_MAP_NATIVE) - use native mapping
+ *      0x02000000 (DBPOD_START_UT_PE_MAP_ODD_EVEN_SWAP) - swap odd/even
+ *
+ *    For Mini Phased Array, the default mapping
+ *    (DBPOD_START_UT_PE_MAP_DEFAULT) does the same thing as the swap
+ *    odd/even mapping (DBPOD_START_UT_PE_MAP_ODD_EVEN_SWAP).
+ *
+ * =====================================================================
+ * Packet version 0x50001
+ * ----------------------
+ *
+ * 1. For the 'Phased Array Channel Element/Delay' command, the
+ *    'bTypeMask' field of DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY supports
+ *    another bit-mask value:
+ *
+ *      0x40 (DBPOD_PAMASK_RX_GAIN) - RX element gains (millibels)
+ *
+ *    This is used to configure a list of sequence table entry specific,
+ *    per-element gains for the sequence table entry specified by the
+ *    'nIndex' field.  The list can be applied to all sequence table
+ *    entries by setting 'nIndex' to -1.
+ *
+ *    Each element of the list will set the gain for the corresponding
+ *    RX element in the list of RX element numbers for the aperture.
+ *    This will get added to the global balancing gain for the element.
+ *
  */
-#define DBPOD_CURRENT_PACKET_VERSION    0x50000
+#define DBPOD_CURRENT_PACKET_VERSION    0x50001
 
 /*
  * Message Header.
@@ -647,18 +700,18 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
     SHORT       nMaxDacDivisor;     /* Maximum DAC sample rate divisor. */
     SHORT       nMinHT;             /* Minimum HT voltage in volts. */
     SHORT       nMaxHT;             /* Maximum HT voltage in volts. */
-    SHORT       nHTResolution;      /* HT voltage resolution in volts. */
+    SHORT       nHTResolution;      /* HT voltage granularity in volts. */
     UCHAR       bPAType;            /* Phased array type. */
     UCHAR       pad4;               /* (padding = 0) */
     LONG        fGlobalHT;          /* Flag: HT voltage must be configured alike for all channels. */
     LONG        fGlobalPW;          /* Flag: pulse width must be configured alike for all channels. */
     SHORT       nMinPW;             /* Minimum pulse width in nanoseconds. */
     SHORT       nMaxPW;             /* Maximum pulse width in nanoseconds. */
-    SHORT       nPWResolution;      /* Pulse width resolution in nanoseconds. */
+    SHORT       nPWResolution;      /* Pulse width granularity in nanosecs. */
     SHORT       nMaxPulserPower;    /* Maximum pulser output power in Watts. */
     SHORT       nMinGain;           /* Minimum gain in millibels (100 mB = 1 dB). */
     SHORT       nMaxGain;           /* Maximum gain in millibels. */
-    SHORT       nGainResolution;    /* Gain resolution in millibels. */
+    SHORT       nGainResolution;    /* Gain granularity in millibels. */
     SHORT       nLowPass;           /* Number of low-pass filter breakpoints. A -1 indicates a continuous range. */
     LONG        anLPF[16];          /* Low-pass filter breakpoints, or continuous range from anLPF[0] to anLPF[1], in Hz. */
     LONG        fGlobalLPF;         /* Flag: low-pass filters must be configured alike for all channels. */
@@ -767,8 +820,11 @@ typedef struct TAG_DBPOD_RSPBUF_GET_CAPABILITIES
                                        gain in millibels. */
     SHORT       nMaxBalanceGain;    /* Maximum phased array element balancing
                                        gain in millibels. */
-    SHORT       nBalanceGainRes;    /* Resolution of phased array element
-                                       balancing gain in millibels. */
+    SHORT       nBalanceGainRes;    /* Nominal granularity of phased array
+                                       element balancing gain in millibels
+                                       at a gain of -1000 millibels.  The
+                                       granularity may increase exponentially
+                                       for gains less than -1000 millibels. */
     /*
      * The length from the start of the 'szHwName' field up to this point
      * is 536 bytes.
@@ -898,6 +954,17 @@ typedef struct TAG_DBPOD_CMDBUF_START_UT
  * Note: see the description of DBPOD_CHUNK_UT_EOC for the effect of setting
  * DBPOD_START_UT_EXTRA_ENCS.
  */
+/*
+ * Use top byte of 'dwFlags' to specify phased array element swapping.
+ * For Mini Phased Array:
+ * - DBPOD_START_UT_PE_MAP_DEFAULT - swaps odd and even elements
+ * - DBPOD_START_UT_PE_MAP_NATIVE  - does not swap any elements
+ * - DBPOD_START_UT_PE_MAP_ODD_EVEN_SWAP - swaps odd and even elements
+ */
+#define DBPOD_START_UT_PE_MAP_DEFAULT           0x00000000
+#define DBPOD_START_UT_PE_MAP_NATIVE            0x01000000
+#define DBPOD_START_UT_PE_MAP_ODD_EVEN_SWAP     0x02000000
+#define DBPOD_START_UT_PE_MAP_MASK              0xFF000000
 
 /* 'Start UT' response buffer is just a message header. */
 typedef struct TAG_DBPOD_RSPBUF_START_UT
@@ -1401,7 +1468,7 @@ typedef struct TAG_DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY
  *
  * Specifies whether the 'Phased Array Channel Element/Delay' command is
  * configuring a list of TX element numbers, RX element numbers,
- * TX delays, or RX delays.
+ * TX delays, RX delays, or RX element gains.
  *
  * It is possible to combine TX element numbers and RX element numbers into
  * a single list, or combine TX and RX delays into a single list by setting
@@ -1410,6 +1477,9 @@ typedef struct TAG_DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY
  * Also used for lists of element balancing gains and element balancing delays.
  * The nIndex value is ignored for element balancing gains and element
  * balancing delays.
+ *
+ * RX element gain (DBPOD_PAMASK_RX_GAIN) is supported since packet version
+ * 0x50001.
  */
 #define DBPOD_PAMASK_TX_ELEM    0x01    /* TX element numbers */
 #define DBPOD_PAMASK_RX_ELEM    0x02    /* RX element numbers */
@@ -1417,6 +1487,7 @@ typedef struct TAG_DBPOD_CMDBUF_PA_CHAN_ELEM_DELAY
 #define DBPOD_PAMASK_RX_DELAY   0x08    /* RX delays (nanoseconds) */
 #define DBPOD_PAMASK_BAL_GAIN   0x10    /* Balancing gain (millibels) */
 #define DBPOD_PAMASK_BAL_DELAY  0x20    /* Balancing delay (nanoseconds) */
+#define DBPOD_PAMASK_RX_GAIN    0x40    /* RX element gains (millibels) */
 
 /*
  * 'Phased Array Channel Element/Delay' response buffer is just a
