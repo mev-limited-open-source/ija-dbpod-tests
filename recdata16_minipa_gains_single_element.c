@@ -408,7 +408,7 @@ static int do_chan_configs(void)
     m.cmd.nLPF = 0;
     m.cmd.RectifierType = DBPOD_RECTIFIER_NONE;
     m.cmd.nRFF = 0;
-    m.cmd.nSampleFreq = 200000000;
+    m.cmd.nSampleFreq = 100000000;
     m.cmd.dwDACStart = 0;
     m.cmd.dwDACLength = 0;
     m.cmd.nDACDivisor = 2;
