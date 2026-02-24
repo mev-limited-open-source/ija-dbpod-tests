@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <unistd.h>
 #include <string.h>
+#include <math.h>
 
 #include "dbpod_wtypes.h"
 #include "dbpod_coms.h"
@@ -69,6 +70,42 @@ static void dump_ut_resp(const DBPOD_MSGHDR *hdr)
         }
         pos += soc->dwLength + sizeof(ULONG) - sizeof(DBPOD_CHUNK_UT_EOC);
         eoc = (const DBPOD_CHUNK_UT_EOC *)(start + pos);
+        if (!DBPOD_VT_UTCOMPRESSED(soc->dwVt))
+        {
+            ULONGLONG sum_squared = 0;
+            ULONG nsamples = 0;
+            if (DBPOD_VT_UT16BIT(soc->dwVt))
+            {
+                const INT16 *data =
+                    (const INT16 *)((const char *)soc +
+                                    offsetof(DBPOD_CHUNK_UT_SOC, Data));
+                while ((const char *)data < (const char *)eoc)
+                {
+                    LONG squared = (LONG)(*data) * (LONG)(*data);
+                    sum_squared += (ULONGLONG)squared;
+                    nsamples++;
+                    data++;
+                }
+            }
+            else
+            {
+                const INT8 *data =
+                    (const INT8 *)((const char *)soc +
+                                    offsetof(DBPOD_CHUNK_UT_SOC, Data));
+                while ((const char *)data < (const char *)eoc)
+                {
+                    LONG squared = (LONG)(*data) * (LONG)(*data);
+                    sum_squared += (ULONGLONG)squared;
+                    nsamples++;
+                    data++;
+                }
+            }
+            if (nsamples)
+            {
+                printf("  Root_Mean_Square=%f,\n",
+                       sqrt((double)sum_squared / nsamples));
+            }
+        }
         printf("  fLossSig=%d, Interface=(%d,%d),\n",
                 eoc->fLossSig, eoc->Interface.Amplitude,
                 eoc->Interface.Position);
