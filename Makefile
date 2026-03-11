@@ -8,26 +8,21 @@ DBPOD_EXES = dummy encoder_test getcaps mdutest recdata1 recdata16 \
 	     recdata64 recdata64_mini recdata64diff recdata64l recdata8 \
 	     set_led vidcapture vidcapture_vt vidconfig vidconfig_ntsc \
 	     vidconfig_pal
-PAUTPOD_EXES = pulse_shape_test recdata1_16_pulse recdata1_16_pulse_pa
 
 DBPOD_HDRS = dbpod_coms.h dbpod_errs.h dbpod_wtypes.h
-PAUTPOD_HDRS = pautpod_coms.h pautpod_errs.h pautpod_wtypes.h
 
 DBPOD_OBJS = $(patsubst %,%.o,$(DBPOD_EXES))
-PAUTPOD_OBJS = $(patsubst %,%.o,$(PAUTPOD_EXES))
 
 CFLAGS = -O -g
 LDLIBS = -lm
 
-ALL_EXES = $(DBPOD_EXES) $(PAUTPOD_EXES)
+ALL_EXES = $(DBPOD_EXES)
 
 all: $(ALL_EXES)
 
 clean:
 	-rm -f $(DBPOD_EXES) $(DBPOD_OBJS)
-	-rm -f $(PAUTPOD_EXES) $(PAUTPOD_OBJS)
 
 $(DBPOD_OBJS):: $(DBPOD_HDRS)
-$(PAUTPOD_OBJS):: $(PAUTPOD_HDRS)
 
 .PHONY: all clean
