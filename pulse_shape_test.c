@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "dbpod_wtypes.h"
+#include "pautpod_wtypes.h"
 #include "pautpod_coms.h"
 
 static const char *progname;
