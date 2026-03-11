@@ -24,7 +24,7 @@
  */
 
 #ifdef _WIN32
-#include <Windows.h>
+#include <windows.h>
 #else
 #ifdef __KERNEL__
 #include <linux/types.h>
