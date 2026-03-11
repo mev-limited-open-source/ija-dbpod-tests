@@ -5,6 +5,7 @@ frame*.pgm
 /encoder_test
 /getcaps
 /mdutest
+/pulse_shape_test
 /recdata1
 /recdata16
 /recdata16_mini
@@ -13,6 +14,8 @@ frame*.pgm
 /recdata16_minipa_gains_single_element
 /recdata16_t1
 /recdata1_16
+/recdata1_16_pulse
+/recdata1_16_pulse_pa
 /recdata1_mdutest
 /recdata1_mini
 /recdata1_mini_extra_encs
