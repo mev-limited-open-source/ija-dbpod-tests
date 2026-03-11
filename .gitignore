@@ -1,6 +1,7 @@
 .*.swp
 *.o
 frame*.pgm
+/diggaincalc
 /dummy
 /encoder_test
 /getcaps
