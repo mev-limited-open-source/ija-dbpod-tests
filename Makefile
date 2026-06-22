@@ -1,6 +1,7 @@
 DBPOD_EXES = dummy encoder_test getcaps mdutest recdata1 recdata16 \
 	     recdata16_mini recdata16_minipa recdata16_minipa_gains \
-	     recdata16_minipa_gains_single_element recdata16_t1 \
+	     recdata16_minipa_gains_single_element \
+	     recdata16_minipa_get_encoders recdata16_t1 \
 	     recdata1_16 recdata1_mdutest recdata1_mini \
 	     recdata1_mini_extra_encs recdata1_mini_t1 recdata1_mini_t2 \
 	     recdata1_t recdata1_t2 recdata1_t3 recdata1_t4 recdata1_tif \

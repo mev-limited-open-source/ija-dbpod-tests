@@ -13,6 +13,7 @@ frame*.pgm
 /recdata16_minipa
 /recdata16_minipa_gains
 /recdata16_minipa_gains_single_element
+/recdata16_minipa_get_encoders
 /recdata16_t1
 /recdata1_16
 /recdata1_16_pulse
