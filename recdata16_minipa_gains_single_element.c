@@ -368,11 +368,11 @@ static int expect_reply(USHORT msgcode, ULONG msgseq)
     return ret;
 }
 
-static int get_all_messages(void)
+static int get_all_or_n_messages(int continuous, unsigned int n)
 {
     DBPOD_MSGHDR *msghdr;
 
-    while (1)
+    while (continuous || n--)
     {
         msghdr = get_message();
         if (!msghdr)
@@ -382,6 +382,16 @@ static int get_all_messages(void)
         free(msghdr);
     }
     return 0;
+}
+
+static int get_n_messages(unsigned int n)
+{
+    return get_all_or_n_messages(0, n);
+}
+
+static int get_all_messages(void)
+{
+    return get_all_or_n_messages(1, 0);
 }
 
 static int do_cmd(const DBPOD_MSGHDR *cmdhdr)
